@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Plan Leverage
 
-## Getting Started
+Local-only viewer for agent token spending and plan leverage. Supports **Claude Code** and **Cursor** harnesses.
 
-First, run the development server:
+## Quick start
 
 ```bash
+git clone <repo-url>
+cd plan-leverage
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000/raw-spend](http://localhost:3000/raw-spend).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Or auto-open the browser:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run dev:open
+```
 
-## Learn More
+**Requirements:** Node 20+, and at least one of:
 
-To learn more about Next.js, take a look at the following resources:
+- Claude Code (`~/.claude/`) for the Claude harness
+- Cursor IDE with global `state.vscdb` for the Cursor harness
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Switch harness in **Settings**. For Cursor costs, upload your account **usage-events** CSV from the billing dashboard.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Environment
 
-## Deploy on Vercel
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `CLAUDE_HOME` | `~/.claude` | Claude Code data directory |
+| `VSCDB_PATH` | Cursor global `state.vscdb` | Override Cursor DB path |
+| `PLAN_LEVERAGE_DATA_DIR` | `./.data` | SQLite index + settings |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Pages
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Spend Logs** — per-request spend (Claude from JSONL; Cursor from uploaded usage-events CSV)
+- **Plan Leverage** — monthly spend ÷ plan price
+- **Settings** — harness switch, plan override, CSV upload (Cursor), re-index (Claude)
+
+## Docs
+
+See [docs/README.md](./docs/README.md).
+
+## License
+
+MIT
