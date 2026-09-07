@@ -12,7 +12,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/plan-leverage", label: "Plan Leverage", icon: BarChart3 },
+  { href: "/leverage", label: "Plan Leverage", icon: BarChart3 },
   { href: "/projects-breakdown", label: "Projects", icon: FolderKanban },
   { href: "/raw-spend", label: "Spend Logs", icon: Receipt },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -47,7 +47,7 @@ function AppShellFrame({ children }: { children: React.ReactNode }) {
               href="/raw-spend"
               className="text-base font-semibold tracking-tight transition-opacity hover:opacity-80"
             >
-              Plan Leverage
+              Agentic Usage
             </Link>
             <HarnessSelect />
             <nav className="hidden items-center gap-1 sm:flex">

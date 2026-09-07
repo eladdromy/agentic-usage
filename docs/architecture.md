@@ -1,6 +1,6 @@
 # Architecture
 
-Plan Leverage is a **local Next.js app** that serves a browser UI for subscription leverage analytics. Supports **Claude Code** and **Cursor** harnesses (switch in the top navbar).
+Agentic Usage is a **local Next.js app** that serves a browser UI for coding agent harness observability — spend logs, subscription leverage, and project breakdown. Supports multiple harnesses today (switch in the top navbar); designed to add more adapters over time.
 
 ## Data flow
 
@@ -8,7 +8,7 @@ Plan Leverage is a **local Next.js app** that serves a browser UI for subscripti
 flowchart LR
   subgraph claude [Claude harness]
     JSONL["~/.claude/projects/**/*.jsonl"]
-    ClaudeDB["plan-leverage.db\nclaude_usage_events"]
+    ClaudeDB["agentic-usage.db\nclaude_usage_events"]
     JSONL --> ClaudeDB
     ClaudeDB --> API
   end
@@ -53,7 +53,7 @@ flowchart LR
 |-------|--------|---------|
 | `/api/raw-spend` | GET | Paginated spend rows (harness-aware) |
 | `/api/projects-breakdown` | GET | Per-project all-time API eq + subscription spend (allocated by monthly API-eq share), first→last billed request range; merges same workspace across harnesses |
-| `/api/plan-leverage` | GET | Yearly/monthly leverage table rows + sparklines; supports **all harnesses** with expandable per-harness breakdown |
+| `/api/leverage` | GET | Yearly/monthly leverage table rows + sparklines; supports **all harnesses** with expandable per-harness breakdown |
 | `/api/profile` | GET | Paths, counts, harness, plan |
 | `/api/settings` | GET/PUT | Plan overrides, harness, sync settings |
 | `/api/settings/plan-months` | GET | Months with usage + tier presets for subscription UI |
@@ -61,6 +61,10 @@ flowchart LR
 | `/api/cursor/provider-usage/upload` | POST | Import billing CSV + project attach |
 | `/api/cursor/attach-projects` | POST | Re-run project attach on stored CSV rows |
 | `/api/cursor/billing-coverage` | GET | CSV date range, export links, unmatched preview |
+
+Default route: `/` → `/leverage` (Plan Leverage).
+
+Legacy redirects (permanent): `/plan-leverage` → `/leverage`, `/api/plan-leverage` → `/api/leverage`.
 
 ## Security
 

@@ -1,9 +1,9 @@
 import {
   PlanLeverageTableSkeleton,
-} from "@/components/plan-leverage/plan-leverage-table";
+} from "@/components/leverage/plan-leverage-table";
 import {
   PlanLeverageYearSummarySkeleton,
-} from "@/components/plan-leverage/plan-leverage-year-summary";
+} from "@/components/leverage/plan-leverage-year-summary";
 import { ProjectsBreakdownTableSkeleton } from "@/components/projects-breakdown/projects-breakdown-table";
 import { RawSpendTableSkeleton } from "@/components/raw-spend/raw-spend-table";
 import { Skeleton } from "@/components/ui/skeleton";

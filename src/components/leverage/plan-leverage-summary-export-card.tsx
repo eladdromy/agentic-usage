@@ -3,8 +3,8 @@
 import { forwardRef } from "react";
 
 import { HarnessLogo } from "@/components/layout/harness-logo";
-import { PlanSpendCell } from "@/components/plan-leverage/plan-spend-cell";
-import { PlanLeverageMonthlySparkline } from "@/components/plan-leverage/plan-leverage-sparkline";
+import { PlanSpendCell } from "@/components/leverage/plan-spend-cell";
+import { PlanLeverageMonthlySparkline } from "@/components/leverage/plan-leverage-sparkline";
 import { MetricSurface, Surface } from "@/components/ui/surface";
 import {
   Table,
@@ -14,12 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PLAN_LEVERAGE_SUMMARY_EXPORT_WIDTH_PX } from "@/lib/plan-leverage/download-summary-image";
+import { LEVERAGE_SUMMARY_EXPORT_WIDTH_PX } from "@/lib/leverage/download-summary-image";
 import type {
   PlanLeverageHarnessRow,
   PlanLeverageMonthRow,
   PlanLeverageYearSummary,
-} from "@/lib/plan-leverage/types";
+} from "@/lib/leverage/types";
 import { cn } from "@/lib/utils";
 
 const HEAD = "bg-muted/40 text-xs font-medium tracking-wide uppercase";
@@ -136,7 +136,7 @@ export const PlanLeverageSummaryExportCard = forwardRef<
     <div
       ref={ref}
       className="pointer-events-none fixed top-0 left-0 -z-50 overflow-hidden bg-background text-foreground opacity-0"
-      style={{ width: PLAN_LEVERAGE_SUMMARY_EXPORT_WIDTH_PX }}
+      style={{ width: LEVERAGE_SUMMARY_EXPORT_WIDTH_PX }}
       aria-hidden="true"
     >
       <div className="flex flex-col gap-6 p-8">
@@ -192,7 +192,10 @@ export const PlanLeverageSummaryExportCard = forwardRef<
         ) : null}
 
         <p className="text-right text-xs text-muted-foreground">
-          Created with Plan-Leverage by Elad Dromy
+          created by{" "}
+          <span className="text-blue-600">
+            https://github.com/eladdromy/agentic-usage
+          </span>
         </p>
       </div>
     </div>

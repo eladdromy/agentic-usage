@@ -1,6 +1,6 @@
 # Plan pricing
 
-Plan Leverage divides monthly billed/API-equivalent spend by your subscription price. **Claude** and **Cursor** use different auto-detection sources.
+Agentic Usage divides monthly billed/API-equivalent spend by your subscription price. **Claude** and **Cursor** use different auto-detection sources.
 
 ## Claude (Claude Code harness)
 
@@ -85,7 +85,7 @@ Displayed as a multiplier, e.g. `×3,936` or `×23.4` (up to one decimal place, 
 
 If plan is $0 (Free/Hobby), leverage shows `—`.
 
-## Display formatting (Plan Leverage page)
+## Display formatting (Leverage page)
 
 | Column | Format |
 |--------|--------|
@@ -102,4 +102,4 @@ plan_exposure = max(0, api_equivalent_usd − plan_spend_usd)
 
 **Spend** is subscription fees plus on-demand charges for the period. **Plan exposure** is the positive gap between API list-price usage and what you actually paid — the upside you would lose if suppliers stopped subsidizing included usage or you switched to pay-as-you-go API billing. When spend exceeds API eq., exposure is **$0**.
 
-Shown in the year summary card (with monthly trend sparklines) and harness breakdown table on the Plan Leverage page.
+Shown in the year summary card (with monthly trend sparklines) and harness breakdown table on the Leverage page.

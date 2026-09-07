@@ -23,7 +23,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 function dbPath(): string {
-  return path.join(getDataDir(), "plan-leverage.db");
+  return path.join(getDataDir(), "agentic-usage.db");
 }
 
 export function getDatabase(): Database.Database {

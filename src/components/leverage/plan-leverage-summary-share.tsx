@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Download, LoaderCircle, Share2 } from "lucide-react";
 
-import { PlanLeverageSummaryExportCard } from "@/components/plan-leverage/plan-leverage-summary-export-card";
+import { PlanLeverageSummaryExportCard } from "@/components/leverage/plan-leverage-summary-export-card";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,11 +11,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { downloadPlanLeverageSummaryImage } from "@/lib/plan-leverage/download-summary-image";
+import { downloadPlanLeverageSummaryImage } from "@/lib/leverage/download-summary-image";
 import type {
   PlanLeverageMonthRow,
   PlanLeverageYearSummary,
-} from "@/lib/plan-leverage/types";
+} from "@/lib/leverage/types";
 
 export function PlanLeverageSummaryShare({
   year,
@@ -59,8 +59,12 @@ export function PlanLeverageSummaryShare({
           <Share2 size={16} aria-hidden="true" />
           Share
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => void handleDownload()} disabled={downloading}>
+        <DropdownMenuContent align="end" className="w-auto min-w-44">
+          <DropdownMenuItem
+            className="whitespace-nowrap"
+            onClick={() => void handleDownload()}
+            disabled={downloading}
+          >
             {downloading ? (
               <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
             ) : (

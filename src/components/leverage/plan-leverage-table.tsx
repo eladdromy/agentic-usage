@@ -4,8 +4,8 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { HarnessLogo } from "@/components/layout/harness-logo";
-import { PlanSpendCell } from "@/components/plan-leverage/plan-spend-cell";
-import { PlanLeverageSparkline } from "@/components/plan-leverage/plan-leverage-sparkline";
+import { PlanSpendCell } from "@/components/leverage/plan-spend-cell";
+import { PlanLeverageSparkline } from "@/components/leverage/plan-leverage-sparkline";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Surface } from "@/components/ui/surface";
 import {
@@ -19,7 +19,7 @@ import {
 import type {
   PlanLeverageHarnessRow,
   PlanLeverageMonthRow,
-} from "@/lib/plan-leverage/types";
+} from "@/lib/leverage/types";
 import { cn } from "@/lib/utils";
 
 const HEAD = "bg-muted/40 text-xs font-medium tracking-wide uppercase";

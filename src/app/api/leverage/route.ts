@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import {
   buildPlanLeverageMonthPayload,
   buildPlanLeverageYearPayload,
-} from "@/lib/plan-leverage/build-payload";
+} from "@/lib/leverage/build-payload";
 import { ensureSynced } from "@/lib/db/usage-db";
 import { resolveActiveHarness } from "@/lib/profile/settings";
 import { currentMonthParam } from "@/lib/timeframe";

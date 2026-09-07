@@ -20,7 +20,7 @@ import type {
   PlanLeverageMonthRow,
   PlanLeverageYearPayload,
   PlanLeverageYearSummary,
-} from "@/lib/plan-leverage/types";
+} from "@/lib/leverage/types";
 import {
   computeLeverage,
   formatLeverageMultiplier,

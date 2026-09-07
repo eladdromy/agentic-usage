@@ -59,12 +59,12 @@ Token-based **API eq.** uses rates from [Cursor models & pricing](https://cursor
 
 Export from Cursor billing dashboard as `usage-events` (often without a `.csv` suffix). Upload accepts any file whose name or header matches the usage-events export.
 
-## Spend Logs & Plan Leverage
+## Spend Logs & Leverage
 
 Both pages query `provider_usage_events` directly — no full vscdb conversation indexing, no live timestamp join at read time.
 
 - **Spend Logs** — paginated billing rows with stored project (from CSV column or post-upload attach), matched composer id, and API-equivalent cost. Filters: project, model, timeframe (including custom range popover), sort by last request or highest spend.
-- **Plan Leverage** — monthly totals and sparklines from CSV dates
+- **Leverage** — monthly totals and sparklines from CSV dates
 
 `GET /api/cursor/billing-coverage` also returns `projectAttribution` stats and an unmatched-rows preview for the UI.
 

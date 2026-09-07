@@ -1,9 +1,9 @@
 import { Info } from "lucide-react";
 
 import { HarnessLogo } from "@/components/layout/harness-logo";
-import { PlanSpendCell } from "@/components/plan-leverage/plan-spend-cell";
-import { PlanLeverageMonthlySparkline } from "@/components/plan-leverage/plan-leverage-sparkline";
-import { PlanLeverageSummaryShare } from "@/components/plan-leverage/plan-leverage-summary-share";
+import { PlanSpendCell } from "@/components/leverage/plan-spend-cell";
+import { PlanLeverageMonthlySparkline } from "@/components/leverage/plan-leverage-sparkline";
+import { PlanLeverageSummaryShare } from "@/components/leverage/plan-leverage-summary-share";
 import { Button } from "@/components/ui/button";
 import { MetricSurface, Surface } from "@/components/ui/surface";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,7 +24,7 @@ import type {
   PlanLeverageHarnessRow,
   PlanLeverageMonthRow,
   PlanLeverageYearSummary,
-} from "@/lib/plan-leverage/types";
+} from "@/lib/leverage/types";
 import { cn } from "@/lib/utils";
 
 const HEAD = "bg-muted/40 text-xs font-medium tracking-wide uppercase";

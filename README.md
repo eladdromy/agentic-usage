@@ -1,49 +1,139 @@
-# Plan Leverage
+# Agentic Usage
 
-Local-only viewer for agent token spending and plan leverage. Supports **Claude Code** and **Cursor** harnesses.
+**Local observability for your coding agent harnesses.** See spend, subscription leverage, and project breakdown — in one dashboard on your machine.
 
-## Quick start
+<!-- screenshot: hero dashboard -->
+<!-- Add: readme-assets/hero.png -->
+
+License: PolyForm Noncommercial · Local-only · No telemetry
+
+---
+
+## The 30-second version
+
+Agentic Usage is a **local dashboard** that reads usage data from the coding agent tools you already run. It indexes session logs, imports billing exports where needed, and shows you **where the money went** — per request, per project, and per subscription month.
+
+Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
+
+---
+
+## What you get
+
+| View | What it shows |
+|------|----------------|
+| **Spend Logs** | Per-request token spend with filters by project, model, and date |
+| **Plan Leverage** | Monthly API-equivalent spend ÷ subscription price — are you getting your plan's worth? |
+| **Projects** | All-time spend allocated by project/workspace across harnesses |
+| **Settings** | Harness switch, plan overrides, billing CSV import, log re-index |
+
+**Works today**
+
+- Multiple coding agent harnesses in one app — switch in the navbar or merge into a combined view
+- Automatic subscription plan detection where the harness exposes it
+- Sparklines, year summaries, and shareable leverage snapshots
+
+**On the roadmap**
+
+- Codex and additional harness adapters
+- One-line install (`curl … \| bash`) — dev install below for now
+
+---
+
+## Screenshots
+
+<!-- screenshot: spend logs -->
+<!-- Add: readme-assets/spend-logs.png -->
+
+<!-- screenshot: plan leverage -->
+<!-- Add: readme-assets/plan-leverage.png -->
+
+<!-- screenshot: projects breakdown -->
+<!-- Add: readme-assets/projects.png -->
+
+---
+
+## Install
+
+**Requirements:** Node.js 20+ and at least one supported coding agent harness with local data on disk.
 
 ```bash
-git clone <repo-url>
-cd plan-leverage
+git clone https://github.com/eladdromy/agentic-usage.git
+cd agentic-usage
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000/raw-spend](http://localhost:3000/raw-spend).
+Open [http://localhost:3000](http://localhost:3000) (redirects to Plan Leverage).
 
-Or auto-open the browser:
+Auto-open the browser after start:
 
 ```bash
 npm run dev:open
 ```
 
-**Requirements:** Node 20+, and at least one of:
+Production build:
 
-- Claude Code (`~/.claude/`) for the Claude harness
-- Cursor IDE with global `state.vscdb` for the Cursor harness
+```bash
+npm run build
+npm start
+```
 
-Switch harness in **Settings**. For Cursor costs, upload your account **usage-events** CSV from the billing dashboard.
+> **Coming soon:** a single install command so you don't need to clone and run dev manually. Track progress in [Issues](https://github.com/eladdromy/agentic-usage/issues).
+
+---
+
+## First run
+
+1. Start the dev server (above).
+2. Open **Settings** and confirm the active harness (or choose **All harnesses**).
+3. For harnesses that use billing CSV exports, upload your **usage-events** CSV from the provider billing dashboard.
+4. For harnesses that write session JSONL logs, click **Re-index** once — after that, indexing runs automatically on navigation.
+
+Spend Logs populate as data is indexed or imported. Plan Leverage and Projects fill in once there is spend to analyze.
+
+---
 
 ## Environment
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
+| `AGENTIC_USAGE_DATA_DIR` | `./.data` | SQLite index and app settings |
 | `CLAUDE_HOME` | `~/.claude` | Claude Code data directory |
-| `VSCDB_PATH` | Cursor global `state.vscdb` | Override Cursor DB path |
-| `PLAN_LEVERAGE_DATA_DIR` | `./.data` | SQLite index + settings |
+| `VSCDB_PATH` | Cursor global `state.vscdb` | Override IDE state DB path |
 
-## Pages
+---
 
-- **Spend Logs** — per-request spend (Claude from JSONL; Cursor from uploaded usage-events CSV)
-- **Plan Leverage** — monthly spend ÷ plan price
-- **Settings** — harness switch, plan override, CSV upload (Cursor), re-index (Claude)
+## Privacy
+
+- All data stays local — SQLite indexes and settings under `.data/`
+- No authentication layer (localhost tool)
+- No analytics or telemetry
+
+---
 
 ## Docs
 
-See [docs/README.md](./docs/README.md).
+Detailed architecture, CSV import, log parsing, and plan pricing: [docs/README.md](./docs/README.md).
+
+---
+
+## Roadmap
+
+- [ ] Codex harness adapter
+- [ ] One-line installer script
+- [ ] README screenshots and demo assets
+- [ ] Additional harnesses as their local data formats stabilize
+
+Issues and PRs welcome once the repo is public.
+
+---
 
 ## License
 
-MIT
+**PolyForm Noncommercial 1.0.0** — see [LICENSE](./LICENSE).
+
+| Use case | Allowed? |
+|----------|----------|
+| Personal / hobby / research / education | Yes |
+| Noncommercial organizations | Yes |
+| Commercial use | Requires a separate license — [open an issue](https://github.com/eladdromy/agentic-usage/issues) |

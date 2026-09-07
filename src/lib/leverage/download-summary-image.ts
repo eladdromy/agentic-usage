@@ -1,6 +1,6 @@
 import { toPng } from "html-to-image";
 
-export const PLAN_LEVERAGE_SUMMARY_EXPORT_WIDTH_PX = 920;
+export const LEVERAGE_SUMMARY_EXPORT_WIDTH_PX = 920;
 
 export async function downloadPlanLeverageSummaryImage(
   node: HTMLElement,
@@ -16,7 +16,7 @@ export async function downloadPlanLeverageSummaryImage(
     });
 
     const link = document.createElement("a");
-    link.download = `plan-leverage-summary-${year}.png`;
+    link.download = `agentic-usage-leverage-${year}.png`;
     link.href = dataUrl;
     link.click();
   } finally {
