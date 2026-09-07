@@ -62,7 +62,9 @@ flowchart LR
 | `/api/cursor/attach-projects` | POST | Re-run project attach on stored CSV rows |
 | `/api/cursor/billing-coverage` | GET | CSV date range, export links, unmatched preview |
 
-Legacy redirect: `/plan-leverage` → `/leverage` (permanent).
+Default route: `/` → `/leverage` (Plan Leverage).
+
+Legacy redirects (permanent): `/plan-leverage` → `/leverage`, `/api/plan-leverage` → `/api/leverage`.
 
 ## Security
 

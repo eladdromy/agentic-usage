@@ -59,8 +59,12 @@ export function PlanLeverageSummaryShare({
           <Share2 size={16} aria-hidden="true" />
           Share
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => void handleDownload()} disabled={downloading}>
+        <DropdownMenuContent align="end" className="w-auto min-w-44">
+          <DropdownMenuItem
+            className="whitespace-nowrap"
+            onClick={() => void handleDownload()}
+            disabled={downloading}
+          >
             {downloading ? (
               <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
             ) : (

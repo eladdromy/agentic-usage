@@ -192,7 +192,10 @@ export const PlanLeverageSummaryExportCard = forwardRef<
         ) : null}
 
         <p className="text-right text-xs text-muted-foreground">
-          Created with Plan-Leverage by Elad Dromy
+          created by{" "}
+          <span className="text-blue-600">
+            https://github.com/eladdromy/agentic-usage
+          </span>
         </p>
       </div>
     </div>

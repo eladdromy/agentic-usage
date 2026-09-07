@@ -63,7 +63,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000/raw-spend](http://localhost:3000/raw-spend).
+Open [http://localhost:3000](http://localhost:3000) (redirects to Plan Leverage).
 
 Auto-open the browser after start:
 

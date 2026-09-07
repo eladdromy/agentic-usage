@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
         destination: "/leverage",
         permanent: true,
       },
+      {
+        source: "/api/plan-leverage",
+        destination: "/api/leverage",
+        permanent: true,
+      },
     ];
   },
 };
