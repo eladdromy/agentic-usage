@@ -9,6 +9,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import type { ActiveHarness } from "@/lib/profile/settings";
+import { useIsClient } from "@/lib/use-is-client";
 
 const HARNESS_OPTIONS: { value: ActiveHarness; label: string }[] = [
   { value: "all", label: "All harnesses" },
@@ -33,9 +34,27 @@ function HarnessOptionIcon({ value }: { value: ActiveHarness }) {
   return <HarnessLogo harness={value} className="size-4" />;
 }
 
+function HarnessSelectPlaceholder({ value }: { value: ActiveHarness }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex h-8 w-auto min-w-[9.5rem] items-center gap-2 rounded-xl border border-border/60 bg-muted/50 px-2.5 text-xs font-medium text-foreground"
+    >
+      <HarnessOptionIcon value={value} />
+      {selectedLabel(value)}
+    </div>
+  );
+}
+
 export function HarnessSelect() {
+  const isClient = useIsClient();
   const { activeHarness, syncing, switchingHarness, switchHarness } =
     useRouteSync();
+
+  if (!isClient) {
+    return <HarnessSelectPlaceholder value="claude" />;
+  }
+
   const disabled = syncing || switchingHarness;
 
   return (

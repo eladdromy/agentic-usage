@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { anonymizeRawSpendProjectOptions } from "@/lib/demo/anonymize-api-payloads";
 import { ensureSynced } from "@/lib/db/usage-db";
 import { rawSpendProjectOptions } from "@/lib/raw-spend-projects";
 import { resolveActiveHarness } from "@/lib/profile/settings";
@@ -15,6 +16,6 @@ export async function GET() {
 
   return NextResponse.json({
     harness,
-    projects: rawSpendProjectOptions(harness),
+    projects: anonymizeRawSpendProjectOptions(rawSpendProjectOptions(harness)),
   });
 }

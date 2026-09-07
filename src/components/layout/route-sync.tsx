@@ -12,6 +12,7 @@ import {
 import { usePathname } from "next/navigation";
 
 import type { ActiveHarness } from "@/lib/profile/settings";
+import { useIsClient } from "@/lib/use-is-client";
 
 type SyncApiResult = {
   harness?: ActiveHarness;
@@ -53,6 +54,7 @@ async function refreshHarness(): Promise<ActiveHarness | null> {
 
 export function RouteSyncProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isClient = useIsClient();
   const [syncing, setSyncing] = useState(false);
   const [switchingHarness, setSwitchingHarness] = useState(false);
   const [syncVersion, setSyncVersion] = useState(0);
@@ -116,8 +118,9 @@ export function RouteSyncProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    if (!isClient) return;
     void runSync();
-  }, [pathname, runSync]);
+  }, [isClient, pathname, runSync]);
 
   return (
     <RouteSyncContext.Provider

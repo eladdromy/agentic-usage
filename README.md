@@ -2,8 +2,7 @@
 
 **Local observability for your coding agent harnesses.** See spend, subscription leverage, and project breakdown — in one dashboard on your machine.
 
-<!-- screenshot: hero dashboard -->
-<!-- Add: readme-assets/hero.png -->
+![Plan Leverage dashboard — monthly API-equivalent spend vs subscription cost](./readme-assets/demo-hero.png)
 
 License: PolyForm Noncommercial · Local-only · No telemetry
 
@@ -41,14 +40,23 @@ Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 
 ## Screenshots
 
-<!-- screenshot: spend logs -->
-<!-- Add: readme-assets/spend-logs.png -->
+### Plan Leverage
 
-<!-- screenshot: plan leverage -->
-<!-- Add: readme-assets/plan-leverage.png -->
+Monthly API-equivalent spend divided by subscription cost — with year summaries, per-harness breakdown, and shareable snapshots.
 
-<!-- screenshot: projects breakdown -->
-<!-- Add: readme-assets/projects.png -->
+![Plan Leverage — year summary, harness table, and monthly breakdown](./readme-assets/demo-plan-leverage.png)
+
+### Spend Logs
+
+Per-request token spend with filters by project, model, and date range.
+
+![Spend Logs — filtered request table with token and API-equivalent columns](./readme-assets/demo-spend-logs.png)
+
+### Projects
+
+All-time spend allocated by project/workspace, with per-harness drill-down.
+
+![Projects breakdown — spend and API-equivalent cost by project](./readme-assets/demo-projects.png)
 
 ---
 
@@ -98,6 +106,7 @@ Spend Logs populate as data is indexed or imported. Plan Leverage and Projects f
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `AGENTIC_USAGE_DATA_DIR` | `./.data` | SQLite index and app settings |
+| `AGENTIC_USAGE_ANONYMIZE` | off | Replace project names/paths in API responses (for README screenshots) |
 | `CLAUDE_HOME` | `~/.claude` | Claude Code data directory |
 | `VSCDB_PATH` | Cursor global `state.vscdb` | Override IDE state DB path |
 
@@ -121,7 +130,7 @@ Detailed architecture, CSV import, log parsing, and plan pricing: [docs/README.m
 
 - [ ] Codex harness adapter
 - [ ] One-line installer script
-- [ ] README screenshots and demo assets
+- [x] README screenshots and demo assets
 - [ ] Additional harnesses as their local data formats stabilize
 
 Issues and PRs welcome once the repo is public.

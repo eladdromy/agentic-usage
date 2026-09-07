@@ -3,3 +3,9 @@ node_modules/
 .next/
 .env*.local
 *.tsbuildinfo
+
+# Local agent / IDE config (not shared in repo)
+.cursor/
+.claude/
+AGENTS.md
+CLAUDE.md

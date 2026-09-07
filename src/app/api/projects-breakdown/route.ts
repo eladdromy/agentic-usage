@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { anonymizeProjectBreakdownRows } from "@/lib/demo/anonymize-api-payloads";
 import { ensureSynced } from "@/lib/db/usage-db";
 import { queryProjectsBreakdown } from "@/lib/projects-breakdown";
 import { resolveActiveHarness } from "@/lib/profile/settings";
@@ -15,5 +16,8 @@ export async function GET() {
 
   const payload = queryProjectsBreakdown(harness);
 
-  return NextResponse.json(payload);
+  return NextResponse.json({
+    ...payload,
+    rows: anonymizeProjectBreakdownRows(payload.rows),
+  });
 }
