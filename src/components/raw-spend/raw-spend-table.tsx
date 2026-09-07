@@ -53,9 +53,11 @@ const NUMERIC = "w-[5.5rem] text-right tabular-nums";
 const METRIC = "text-center tabular-nums";
 const HEAD = "bg-muted/40 text-xs font-medium tracking-wide uppercase";
 const STICKY_COST =
-  "sticky right-[5.75rem] z-10 w-[5.75rem] bg-card/95 backdrop-blur-sm transition-colors group-hover/row:bg-muted/50";
+  "sticky right-[5.75rem] z-10 w-[5.75rem] bg-card transition-colors group-hover/row:bg-muted";
 const STICKY_API =
-  "sticky right-0 z-10 w-[5.75rem] bg-card/95 backdrop-blur-sm transition-colors group-hover/row:bg-muted/50 shadow-[-8px_0_16px_-10px_rgba(0,0,0,0.12)] dark:shadow-[-8px_0_16px_-10px_rgba(0,0,0,0.35)]";
+  "sticky right-0 z-10 w-[5.75rem] bg-card transition-colors group-hover/row:bg-muted shadow-[-8px_0_16px_-10px_rgba(0,0,0,0.12)] dark:shadow-[-8px_0_16px_-10px_rgba(0,0,0,0.35)]";
+/** Opaque header bg so horizontal scroll does not bleed through sticky columns. */
+const STICKY_HEAD_BG = "bg-muted";
 
 function isPaidBillingLabel(label: string): boolean {
   return label.startsWith("$");
@@ -204,14 +206,14 @@ export function RawSpendTable({
               <TableHead className={cn(NUMERIC, HEAD)}>Cache read</TableHead>
               <TableHead className={cn(NUMERIC, HEAD)}>Output</TableHead>
               <TableHead className={cn(NUMERIC, HEAD)}>Total</TableHead>
-              <TableHead className={cn(METRIC, STICKY_COST, HEAD)}>
+              <TableHead className={cn(METRIC, STICKY_COST, HEAD, STICKY_HEAD_BG)}>
                 <TableHeadHelp
                   label="Spend"
                   help={<SpendLogsCostHelp />}
                   align="center"
                 />
               </TableHead>
-              <TableHead className={cn(METRIC, STICKY_API, HEAD)}>
+              <TableHead className={cn(METRIC, STICKY_API, HEAD, STICKY_HEAD_BG)}>
                 <TableHeadHelp
                   label="API eq."
                   help={<SpendLogsApiEqHelp />}
