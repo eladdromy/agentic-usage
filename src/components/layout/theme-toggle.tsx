@@ -4,9 +4,22 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
+import { useIsClient } from "@/lib/use-is-client";
 
 export function ThemeToggle() {
+  const isClient = useIsClient();
   const { resolvedTheme, setTheme } = useTheme();
+
+  if (!isClient) {
+    return (
+      <span
+        aria-hidden="true"
+        className="inline-flex size-9 items-center justify-center rounded-xl text-muted-foreground"
+      >
+        <Sun className="size-4" aria-hidden="true" />
+      </span>
+    );
+  }
 
   return (
     <Button

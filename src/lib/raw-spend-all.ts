@@ -1,4 +1,5 @@
 import { buildBillingCoveragePayload } from "@/lib/cursor/billing-coverage";
+import { anonymizeRawSpendApiRow } from "@/lib/demo/anonymize-api-payloads";
 import type { ProviderUsageParsedRow } from "@/lib/cursor/provider-usage-types";
 import {
   formatCursorRowCostsSplit,
@@ -67,7 +68,7 @@ type MergeOptions = {
 
 function mapClaudeRow(row: UsageEventRow): RawSpendApiRow {
   const calculatedCostUsd = numericApiEqUsd(row.costUsd, row.calculatedCostUsd);
-  return {
+  const mapped: RawSpendApiRow = {
     id: row.id,
     harness: "claude",
     rowKey: `claude-${row.id}`,
@@ -88,13 +89,21 @@ function mapClaudeRow(row: UsageEventRow): RawSpendApiRow {
     calculatedCostUsd,
     sortDateSec: row.dateSec,
   };
+
+  return {
+    ...mapped,
+    ...anonymizeRawSpendApiRow(mapped, row.projectSlug, row.sessionId),
+    calculatedCostUsd,
+    sortDateSec: row.dateSec,
+  };
 }
 
 function mapCursorRow(row: ProviderUsageParsedRow & { id: number }): RawSpendApiRow {
   const costs = formatCursorRowCostsSplit(row);
   const project = projectLabelsFromPath(row.project);
   const calculatedCostUsd = numericApiEqUsdFromProviderRow(row);
-  return {
+  const sessionRef = row.composerId || row.cloudAgentId || "";
+  const mapped: RawSpendApiRow = {
     id: row.id,
     harness: "cursor",
     rowKey: `cursor-${row.id}`,
@@ -103,7 +112,7 @@ function mapCursorRow(row: ProviderUsageParsedRow & { id: number }): RawSpendApi
     createdAgo: toRelativeTimeAgo(row.date),
     sourceLabel: project.label,
     sourceDetail: project.detail,
-    refLabel: shortComposerId(row.composerId || row.cloudAgentId || ""),
+    refLabel: shortComposerId(sessionRef),
     model: row.model || "—",
     inputTokensLabel: formatTokenCount(row.inputWithoutCacheWrite ?? 0),
     cacheWriteLabel: formatTokenCount(row.inputWithCacheWrite ?? 0),
@@ -112,6 +121,13 @@ function mapCursorRow(row: ProviderUsageParsedRow & { id: number }): RawSpendApi
     totalTokensLabel: formatTokenCount(row.totalTokens ?? 0),
     billingCostLabel: costs.billingLabel,
     apiEqCostLabel: costs.apiEqLabel,
+    calculatedCostUsd,
+    sortDateSec: Date.parse(row.date) / 1000,
+  };
+
+  return {
+    ...mapped,
+    ...anonymizeRawSpendApiRow(mapped, row.project ?? project.label, sessionRef),
     calculatedCostUsd,
     sortDateSec: Date.parse(row.date) / 1000,
   };

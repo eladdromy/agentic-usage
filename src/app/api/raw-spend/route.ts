@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { anonymizeRawSpendApiRow } from "@/lib/demo/anonymize-api-payloads";
 import { buildBillingCoveragePayload } from "@/lib/cursor/billing-coverage";
 import {
   formatCursorRowCostsSplit,
@@ -92,26 +93,31 @@ export async function GET(request: Request) {
       rows: rows.map((row) => {
         const costs = formatCursorRowCostsSplit(row);
         const project = projectLabelsFromPath(row.project);
-        return {
-          id: row.id,
-          harness: "cursor" as const,
-          rowKey: `cursor-${row.id}`,
-          createdAt: row.date,
-          createdAtLabel: formatDateTime(row.date),
-          createdAgo: toRelativeTimeAgo(row.date),
-          sourceLabel: project.label,
-          sourceDetail: project.detail,
-          refLabel: shortComposerId(row.composerId || row.cloudAgentId || ""),
-          model: row.model || "—",
-          inputTokensLabel: formatTokenCount(row.inputWithoutCacheWrite ?? 0),
-          cacheWriteLabel: formatTokenCount(row.inputWithCacheWrite ?? 0),
-          cacheReadLabel: formatTokenCount(row.cacheRead ?? 0),
-          outputTokensLabel: formatTokenCount(row.outputTokens ?? 0),
-          totalTokensLabel: formatTokenCount(row.totalTokens ?? 0),
-          billingCostLabel: costs.billingLabel,
-          apiEqCostLabel: costs.apiEqLabel,
-          calculatedCostUsd: numericApiEqUsdFromProviderRow(row),
-        };
+        return anonymizeRawSpendApiRow(
+          {
+            id: row.id,
+            harness: "cursor" as const,
+            rowKey: `cursor-${row.id}`,
+            createdAt: row.date,
+            createdAtLabel: formatDateTime(row.date),
+            createdAgo: toRelativeTimeAgo(row.date),
+            sourceLabel: project.label,
+            sourceDetail: project.detail,
+            refLabel: shortComposerId(row.composerId || row.cloudAgentId || ""),
+            model: row.model || "—",
+            inputTokensLabel: formatTokenCount(row.inputWithoutCacheWrite ?? 0),
+            cacheWriteLabel: formatTokenCount(row.inputWithCacheWrite ?? 0),
+            cacheReadLabel: formatTokenCount(row.cacheRead ?? 0),
+            outputTokensLabel: formatTokenCount(row.outputTokens ?? 0),
+            totalTokensLabel: formatTokenCount(row.totalTokens ?? 0),
+            billingCostLabel: costs.billingLabel,
+            apiEqCostLabel: costs.apiEqLabel,
+            calculatedCostUsd: numericApiEqUsdFromProviderRow(row),
+            sortDateSec: Date.parse(row.date) / 1000,
+          },
+          row.project ?? project.label,
+          row.composerId || row.cloudAgentId || "",
+        );
       }),
       page,
       pageSize: PAGE_SIZE,
@@ -138,26 +144,33 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     harness: "claude",
-    rows: rows.map((row) => ({
-      id: row.id,
-      harness: "claude" as const,
-      rowKey: `claude-${row.id}`,
-      createdAt: row.dateIso,
-      createdAtLabel: formatDateTime(row.dateIso),
-      createdAgo: toRelativeTimeAgo(row.dateIso),
-      sourceLabel: projectNameFromSlug(row.projectSlug),
-      sourceDetail: decodeProjectSlugForDisplay(row.projectSlug),
-      refLabel: shortSessionId(row.sessionId),
-      model: row.model,
-      inputTokensLabel: formatTokenCount(row.inputWithoutCacheWrite),
-      cacheWriteLabel: formatTokenCount(row.inputWithCacheWrite),
-      cacheReadLabel: formatTokenCount(row.cacheRead),
-      outputTokensLabel: formatTokenCount(row.outputTokens),
-      totalTokensLabel: formatTokenCount(row.totalTokens),
-      billingCostLabel: formatClaudeBillingCostLabel(row.costUsd),
-      apiEqCostLabel: formatApiEqCostLabel(row.costUsd, row.calculatedCostUsd),
-      calculatedCostUsd: numericApiEqUsd(row.costUsd, row.calculatedCostUsd),
-    })),
+    rows: rows.map((row) =>
+      anonymizeRawSpendApiRow(
+        {
+          id: row.id,
+          harness: "claude" as const,
+          rowKey: `claude-${row.id}`,
+          createdAt: row.dateIso,
+          createdAtLabel: formatDateTime(row.dateIso),
+          createdAgo: toRelativeTimeAgo(row.dateIso),
+          sourceLabel: projectNameFromSlug(row.projectSlug),
+          sourceDetail: decodeProjectSlugForDisplay(row.projectSlug),
+          refLabel: shortSessionId(row.sessionId),
+          model: row.model,
+          inputTokensLabel: formatTokenCount(row.inputWithoutCacheWrite),
+          cacheWriteLabel: formatTokenCount(row.inputWithCacheWrite),
+          cacheReadLabel: formatTokenCount(row.cacheRead),
+          outputTokensLabel: formatTokenCount(row.outputTokens),
+          totalTokensLabel: formatTokenCount(row.totalTokens),
+          billingCostLabel: formatClaudeBillingCostLabel(row.costUsd),
+          apiEqCostLabel: formatApiEqCostLabel(row.costUsd, row.calculatedCostUsd),
+          calculatedCostUsd: numericApiEqUsd(row.costUsd, row.calculatedCostUsd),
+          sortDateSec: row.dateSec,
+        },
+        row.projectSlug,
+        row.sessionId,
+      ),
+    ),
     page,
     pageSize: PAGE_SIZE,
     total,

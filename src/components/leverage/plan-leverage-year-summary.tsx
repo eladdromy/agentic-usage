@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 const HEAD = "bg-muted/40 text-xs font-medium tracking-wide uppercase";
 const NUMERIC = "text-center tabular-nums";
 const SUMMARY_CONTENT_WIDTH = "w-full md:w-2/3";
+const SUMMARY_HERO_WIDTH = "w-full max-w-4xl";
 
 const METRIC_HELP = {
   leverage:
@@ -208,10 +209,14 @@ export function PlanLeverageYearSummaryCard({
   year,
   summary,
   months,
+  layout = "default",
+  showShare = true,
 }: {
   year: number;
   summary: PlanLeverageYearSummary;
   months: PlanLeverageMonthRow[];
+  layout?: "default" | "hero";
+  showShare?: boolean;
 }) {
   const showHarnessBreakdown = summary.harnessBreakdown.length > 0;
   const leverageTrend = monthlyTrendFromRows(
@@ -224,15 +229,23 @@ export function PlanLeverageYearSummaryCard({
   );
 
   return (
-    <div className={cn("section-stack", SUMMARY_CONTENT_WIDTH)}>
+    <div
+      data-readme-screenshot="year-summary"
+      className={cn(
+        "section-stack",
+        layout === "hero" ? SUMMARY_HERO_WIDTH : SUMMARY_CONTENT_WIDTH,
+      )}
+    >
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold tracking-tight">Summary of {year}</h2>
-          <PlanLeverageSummaryShare
-            year={year}
-            summary={summary}
-            months={months}
-          />
+          {showShare ? (
+            <PlanLeverageSummaryShare
+              year={year}
+              summary={summary}
+              months={months}
+            />
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-3">

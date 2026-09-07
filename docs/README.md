@@ -3,6 +3,7 @@
 | Doc | Description |
 |-----|-------------|
 | [architecture.md](./architecture.md) | System design and dual-harness data flow |
+| [readme-screenshots.md](./readme-screenshots.md) | README demo PNG capture and anonymization |
 | [claude-log-parsing.md](./claude-log-parsing.md) | How Claude Code JSONL is parsed |
 | [cursor-provider-usage-csv.md](./cursor-provider-usage-csv.md) | Billing CSV import, spend, leverage, export links |
 | [plan-pricing.md](./plan-pricing.md) | Subscription plan mapping and overrides |
@@ -27,3 +28,4 @@
 | Plan Leverage UI | `src/components/leverage/` (table, sparkline, summary share/export), `GET /api/leverage` |
 | Billing upload UI | `src/components/cursor/` |
 | Data directory / env | `src/lib/claude/path.ts` (`AGENTIC_USAGE_DATA_DIR`) |
+| README screenshot tooling | `scripts/capture-readme-screenshots.sh`, `scripts/verify-no-leaks.mjs`, `src/lib/demo/` |

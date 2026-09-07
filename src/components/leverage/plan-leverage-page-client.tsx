@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { CursorBillingBanner } from "@/components/cursor/cursor-billing-banner";
 import { PlanLeveragePageContentSkeleton } from "@/components/layout/page-loading-skeletons";
@@ -16,11 +17,22 @@ import { PageHeader } from "@/components/page-header";
 import { Surface } from "@/components/ui/surface";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { BillingCoveragePayload } from "@/lib/cursor/billing-coverage-shared";
+import {
+  isReadmeYearSummaryScreenshot,
+  readmeScreenshotYear,
+} from "@/lib/demo/readme-screenshot";
 import type { PlanLeverageYearPayload } from "@/lib/leverage/types";
+import { useIsClient } from "@/lib/use-is-client";
 
 export function PlanLeveragePageClient() {
+  const searchParams = useSearchParams();
+  const isClient = useIsClient();
+  const screenshotMode =
+    isClient && isReadmeYearSummaryScreenshot(searchParams);
   const { syncVersion, syncing, activeHarness } = useRouteSync();
-  const [year, setYear] = useState(() => new Date().getUTCFullYear());
+  const [year, setYear] = useState(() =>
+    readmeScreenshotYear(searchParams, new Date().getUTCFullYear()),
+  );
   const [data, setData] = useState<PlanLeverageYearPayload | null>(null);
   const [coverage, setCoverage] = useState<BillingCoveragePayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,10 +78,31 @@ export function PlanLeveragePageClient() {
   }, [year, syncVersion, syncing, refreshKey]);
 
   const waitingForIndex =
-    syncing && (activeHarness === "claude" || activeHarness === "all") && data == null;
+    isClient &&
+    syncing &&
+    (activeHarness === "claude" || activeHarness === "all") &&
+    data == null;
   const isInitialLoad = data == null && (loading || waitingForIndex);
   const showRows = !isInitialLoad && data != null;
   const harness = data?.activeHarness ?? activeHarness;
+
+  if (screenshotMode) {
+    if (isInitialLoad) {
+      return <PlanLeveragePageContentSkeleton />;
+    }
+
+    if (!showRows) return null;
+
+    return (
+      <PlanLeverageYearSummaryCard
+        year={data.selectedYear}
+        summary={data.yearSummary}
+        months={data.months}
+        layout="hero"
+        showShare={false}
+      />
+    );
+  }
 
   return (
     <div className="page-stack">

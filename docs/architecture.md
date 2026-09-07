@@ -70,6 +70,8 @@ Legacy redirects (permanent): `/plan-leverage` → `/leverage`, `/api/plan-lever
 
 All data stays on the local machine. No auth, no cloud, no outbound telemetry.
 
+Optional `AGENTIC_USAGE_ANONYMIZE=1` replaces project display names in API responses for README screenshots; see [readme-screenshots.md](./readme-screenshots.md).
+
 ## Page loading
 
 Every analytics page uses the same loading pattern:

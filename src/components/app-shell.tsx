@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { BarChart3, FolderKanban, LoaderCircle, Receipt, Settings } from "lucide-react";
 
 import { HarnessSelect } from "@/components/layout/harness-select";
@@ -9,6 +10,9 @@ import { RouteSyncProvider, useRouteSync } from "@/components/layout/route-sync"
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { ActiveHarness } from "@/lib/profile/settings";
+import { isReadmeYearSummaryScreenshot } from "@/lib/demo/readme-screenshot";
+import { useIsClient } from "@/lib/use-is-client";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -23,7 +27,26 @@ const navLinkClass =
 
 function AppShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isClient = useIsClient();
+  const screenshotMode =
+    isClient && isReadmeYearSummaryScreenshot(searchParams);
   const { activeHarness, syncing } = useRouteSync();
+
+  const showIndexing =
+    isClient &&
+    syncing &&
+    (activeHarness === "claude" || activeHarness === "all");
+
+  if (screenshotMode) {
+    return (
+      <div className="relative flex min-h-screen flex-col bg-background">
+        <main className="mx-auto flex w-full max-w-5xl flex-1 px-8 py-10">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-full flex-col">
@@ -71,7 +94,7 @@ function AppShellFrame({ children }: { children: React.ReactNode }) {
             </nav>
           </div>
           <div className="flex items-center gap-3">
-            {syncing && (activeHarness === "claude" || activeHarness === "all") ? (
+            {showIndexing ? (
               <div
                 className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex"
                 aria-live="polite"
@@ -111,11 +134,19 @@ function AppShellFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  initialActiveHarness = "claude",
+}: {
+  children: React.ReactNode;
+  initialActiveHarness?: ActiveHarness;
+}) {
   return (
     <TooltipProvider>
-      <RouteSyncProvider>
-        <AppShellFrame>{children}</AppShellFrame>
+      <RouteSyncProvider initialActiveHarness={initialActiveHarness}>
+        <Suspense fallback={<div className="min-h-screen bg-background" />}>
+          <AppShellFrame>{children}</AppShellFrame>
+        </Suspense>
         <Toaster richColors closeButton />
       </RouteSyncProvider>
     </TooltipProvider>
