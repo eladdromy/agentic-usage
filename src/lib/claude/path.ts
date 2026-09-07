@@ -37,7 +37,7 @@ export function decodeProjectSlugNaive(slug: string): string | null {
 }
 
 export function getDataDir(): string {
-  const raw = process.env.PLAN_LEVERAGE_DATA_DIR?.trim();
+  const raw = process.env.AGENTIC_USAGE_DATA_DIR?.trim();
   if (raw) return path.resolve(raw);
   return path.join(process.cwd(), ".data");
 }

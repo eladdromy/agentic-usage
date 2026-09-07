@@ -8,15 +8,15 @@ import { PlanLeveragePageContentSkeleton } from "@/components/layout/page-loadin
 import { useRouteSync } from "@/components/layout/route-sync";
 import {
   PlanLeverageTable,
-} from "@/components/plan-leverage/plan-leverage-table";
+} from "@/components/leverage/plan-leverage-table";
 import {
   PlanLeverageYearSummaryCard,
-} from "@/components/plan-leverage/plan-leverage-year-summary";
+} from "@/components/leverage/plan-leverage-year-summary";
 import { PageHeader } from "@/components/page-header";
 import { Surface } from "@/components/ui/surface";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { BillingCoveragePayload } from "@/lib/cursor/billing-coverage-shared";
-import type { PlanLeverageYearPayload } from "@/lib/plan-leverage/types";
+import type { PlanLeverageYearPayload } from "@/lib/leverage/types";
 
 export function PlanLeveragePageClient() {
   const { syncVersion, syncing, activeHarness } = useRouteSync();
@@ -37,7 +37,7 @@ export function PlanLeveragePageClient() {
       setError(null);
       try {
         const [leverageRes, coverageRes] = await Promise.all([
-          fetch(`/api/plan-leverage?year=${encodeURIComponent(String(year))}`),
+          fetch(`/api/leverage?year=${encodeURIComponent(String(year))}`),
           fetch("/api/cursor/billing-coverage"),
         ]);
         if (!leverageRes.ok) throw new Error("Failed to load plan leverage");

@@ -18,10 +18,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Plan Leverage",
-    template: "%s · Plan Leverage",
+    default: "Agentic Usage",
+    template: "%s · Agentic Usage",
   },
-  description: "Local Claude Code spending and plan leverage viewer",
+  description:
+    "Local observability dashboard for coding agent harness usage, spend, and subscription leverage",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

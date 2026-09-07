@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { PlanLeveragePageContentSkeleton } from "@/components/layout/page-loading-skeletons";
 import { PageHeader } from "@/components/page-header";
-import { PlanLeveragePageClient } from "@/components/plan-leverage/plan-leverage-page-client";
+import { PlanLeveragePageClient } from "@/components/leverage/plan-leverage-page-client";
 
 export const metadata: Metadata = {
   title: "Plan Leverage",

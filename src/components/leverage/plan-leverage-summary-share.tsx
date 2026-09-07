@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Download, LoaderCircle, Share2 } from "lucide-react";
 
-import { PlanLeverageSummaryExportCard } from "@/components/plan-leverage/plan-leverage-summary-export-card";
+import { PlanLeverageSummaryExportCard } from "@/components/leverage/plan-leverage-summary-export-card";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,11 +11,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { downloadPlanLeverageSummaryImage } from "@/lib/plan-leverage/download-summary-image";
+import { downloadPlanLeverageSummaryImage } from "@/lib/leverage/download-summary-image";
 import type {
   PlanLeverageMonthRow,
   PlanLeverageYearSummary,
-} from "@/lib/plan-leverage/types";
+} from "@/lib/leverage/types";
 
 export function PlanLeverageSummaryShare({
   year,

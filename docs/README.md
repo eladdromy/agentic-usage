@@ -24,5 +24,6 @@
 | Page loading skeletons | `src/components/layout/page-loading-skeletons.tsx` |
 | Merged spend (all harnesses) | `src/lib/raw-spend-all.ts` |
 | Spend Logs filters | `src/components/filters.tsx`, `GET /api/raw-spend/projects`, `GET /api/raw-spend/models` |
-| Plan Leverage UI | `src/components/plan-leverage/` (table, sparkline, summary share/export) |
+| Plan Leverage UI | `src/components/leverage/` (table, sparkline, summary share/export), `GET /api/leverage` |
 | Billing upload UI | `src/components/cursor/` |
+| Data directory / env | `src/lib/claude/path.ts` (`AGENTIC_USAGE_DATA_DIR`) |
