@@ -52,13 +52,20 @@ async function refreshHarness(): Promise<ActiveHarness | null> {
   }
 }
 
-export function RouteSyncProvider({ children }: { children: ReactNode }) {
+export function RouteSyncProvider({
+  children,
+  initialActiveHarness = "claude",
+}: {
+  children: ReactNode;
+  initialActiveHarness?: ActiveHarness;
+}) {
   const pathname = usePathname();
   const isClient = useIsClient();
   const [syncing, setSyncing] = useState(false);
   const [switchingHarness, setSwitchingHarness] = useState(false);
   const [syncVersion, setSyncVersion] = useState(0);
-  const [activeHarness, setActiveHarness] = useState<ActiveHarness>("claude");
+  const [activeHarness, setActiveHarness] =
+    useState<ActiveHarness>(initialActiveHarness);
   const syncInFlight = useRef<Promise<SyncApiResult | null> | null>(null);
 
   const runSync = useCallback(async (): Promise<SyncApiResult | null> => {

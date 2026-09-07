@@ -106,11 +106,38 @@ Spend Logs populate as data is indexed or imported. Plan Leverage and Projects f
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `AGENTIC_USAGE_DATA_DIR` | `./.data` | SQLite index and app settings |
-| `AGENTIC_USAGE_ANONYMIZE` | off | Replace project names/paths in API responses (for README screenshots) |
+| `AGENTIC_USAGE_ANONYMIZE` | off | Replace project **display** names/paths in API responses (for README screenshots). Filter values stay real so Spend Logs project filters still work. |
 | `CLAUDE_HOME` | `~/.claude` | Claude Code data directory |
 | `VSCDB_PATH` | Cursor global `state.vscdb` | Override IDE state DB path |
 
+When `AGENTIC_USAGE_ANONYMIZE=1`, only labels shown in the UI are anonymized — not internal filter keys or database queries.
+
 ---
+
+## README screenshots
+
+Regenerate demo images (builds a production server with anonymization, scans APIs and rendered pages for leaks, then captures four PNGs):
+
+```bash
+npm run screenshots
+```
+
+Use an existing dev server only if it was started with anonymization enabled:
+
+```bash
+AGENTIC_USAGE_ANONYMIZE=1 npm run dev
+SCREENSHOT_USE_DEV=1 npm run screenshots
+```
+
+If the dev server is not anonymized, the script exits unless you pass `SCREENSHOT_FORCE_DEV=1` (not recommended).
+
+Verify leak checks against a running server:
+
+```bash
+SCREENSHOT_BASE_URL=http://localhost:3001 npm run screenshots:verify
+```
+
+See [docs/readme-screenshots.md](./docs/readme-screenshots.md) for details.
 
 ## Privacy
 

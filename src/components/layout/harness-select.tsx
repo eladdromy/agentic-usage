@@ -52,7 +52,7 @@ export function HarnessSelect() {
     useRouteSync();
 
   if (!isClient) {
-    return <HarnessSelectPlaceholder value="claude" />;
+    return <HarnessSelectPlaceholder value={activeHarness} />;
   }
 
   const disabled = syncing || switchingHarness;

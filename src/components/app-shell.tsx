@@ -10,6 +10,7 @@ import { RouteSyncProvider, useRouteSync } from "@/components/layout/route-sync"
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { ActiveHarness } from "@/lib/profile/settings";
 import { isReadmeYearSummaryScreenshot } from "@/lib/demo/readme-screenshot";
 import { useIsClient } from "@/lib/use-is-client";
 import { cn } from "@/lib/utils";
@@ -133,10 +134,16 @@ function AppShellFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  initialActiveHarness = "claude",
+}: {
+  children: React.ReactNode;
+  initialActiveHarness?: ActiveHarness;
+}) {
   return (
     <TooltipProvider>
-      <RouteSyncProvider>
+      <RouteSyncProvider initialActiveHarness={initialActiveHarness}>
         <Suspense fallback={<div className="min-h-screen bg-background" />}>
           <AppShellFrame>{children}</AppShellFrame>
         </Suspense>

@@ -9,20 +9,6 @@ BASE="${SCREENSHOT_BASE_URL:-http://localhost:${PORT}}"
 PW="npx --yes playwright@1.51.1 screenshot"
 DEV_PID=""
 
-FORBIDDEN=(
-  "plan-leverage"
-  "HarnessApp"
-  "harnessAppMVP"
-  "SupplementsDirectory"
-  "investments"
-  "saas-appraisgent"
-  "Ideas-Machine"
-  "KnowledgeMCP"
-  "Scrapers-Exploration"
-  "StarterSprint"
-  "/Users/eladd"
-)
-
 cleanup() {
   if [[ -n "$DEV_PID" ]] && kill -0 "$DEV_PID" 2>/dev/null; then
     kill "$DEV_PID" 2>/dev/null || true
@@ -44,32 +30,23 @@ wait_for_server() {
   return 1
 }
 
-assert_no_leaks() {
-  local payload="$1"
-  local context="$2"
-  local lower
-  lower="$(printf '%s' "$payload" | tr '[:upper:]' '[:lower:]')"
-  for needle in "${FORBIDDEN[@]}"; do
-    if [[ "$lower" == *"$(printf '%s' "$needle" | tr '[:upper:]' '[:lower:]')"* ]]; then
-      echo "Leak detected in ${context}: found \"${needle}\"" >&2
-      exit 1
-    fi
-  done
-}
-
-verify_api() {
-  local endpoint body
-  for endpoint in "/api/projects-breakdown" "/api/raw-spend?page=1"; do
-    body="$(curl -fsS "${BASE}${endpoint}")"
-    assert_no_leaks "$body" "$endpoint"
-  done
+verify_no_leaks() {
+  SCREENSHOT_BASE_URL="$BASE" node "$ROOT/scripts/verify-no-leaks.mjs"
 }
 
 if [[ -z "${SCREENSHOT_BASE_URL:-}" ]]; then
   if [[ "${SCREENSHOT_USE_DEV:-}" == "1" ]] && curl -s -o /dev/null -w "%{http_code}" "http://localhost:3000/leverage" | grep -q "200"; then
     echo "Using existing dev server at http://localhost:3000"
-    echo "Ensure it was started with AGENTIC_USAGE_ANONYMIZE=1 for anonymized screenshots."
     BASE="http://localhost:3000"
+    if [[ "${SCREENSHOT_FORCE_DEV:-}" != "1" ]]; then
+      if ! SCREENSHOT_BASE_URL="$BASE" node "$ROOT/scripts/verify-no-leaks.mjs"; then
+        echo "Dev server failed leak checks (likely missing AGENTIC_USAGE_ANONYMIZE=1)." >&2
+        echo "Restart with AGENTIC_USAGE_ANONYMIZE=1 or set SCREENSHOT_FORCE_DEV=1 to override." >&2
+        exit 1
+      fi
+    else
+      echo "SCREENSHOT_FORCE_DEV=1 — skipping dev-server anonymization check."
+    fi
   else
     echo "Building production app for clean screenshots…"
     (
@@ -87,7 +64,7 @@ if [[ -z "${SCREENSHOT_BASE_URL:-}" ]]; then
   fi
 fi
 
-verify_api
+verify_no_leaks
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
@@ -115,5 +92,7 @@ capture "/leverage?screenshot=year-summary&year=2026" demo-hero.png 1200,720 "h2
 capture "/leverage" demo-plan-leverage.png 1440,900 "h1:has-text('Plan Leverage')"
 capture "/raw-spend" demo-spend-logs.png 1440,900 "h1:has-text('Spend Logs')"
 capture "/projects-breakdown" demo-projects.png 1440,900 "h1:has-text('Projects breakdown')"
+
+verify_no_leaks
 
 echo "Saved verified anonymized screenshots to $OUT"

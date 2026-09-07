@@ -1,6 +1,5 @@
 import {
   anonymizeProjectFields,
-  anonymizeProjectPath,
   anonymizeSessionRef,
   isAnonymizeEnabled,
 } from "@/lib/demo/anonymize-display";
@@ -19,13 +18,10 @@ export function anonymizeProjectBreakdownRows(
       row.label,
       row.detail,
     );
-    const anonPath = detail ?? anonymizeProjectPath(row.projectKey);
     return {
       ...row,
       label,
       detail,
-      projectKey: anonPath,
-      rowKey: `path:${anonPath.toLowerCase()}`,
     };
   });
 }
@@ -41,10 +37,8 @@ export function anonymizeRawSpendProjectOptions(
       project.label,
       project.detail,
     );
-    const anonPath = detail ?? anonymizeProjectPath(project.value);
     return {
       ...project,
-      value: anonPath,
       label,
       detail,
     };
@@ -56,6 +50,8 @@ export function anonymizeRawSpendApiRow(
   canonicalKey: string,
   sessionRef?: string,
 ): Omit<RawSpendApiRow, "calculatedCostUsd" | "sortDateSec"> {
+  if (!isAnonymizeEnabled()) return row;
+
   const { label, detail } = anonymizeProjectFields(
     canonicalKey,
     row.sourceLabel,

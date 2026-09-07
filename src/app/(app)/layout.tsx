@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app-shell";
+import { resolveActiveHarness } from "@/lib/profile/settings";
 
 export const metadata: Metadata = {
   title: "Agentic Usage",
@@ -9,5 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
-  return <AppShell>{children}</AppShell>;
+  const initialActiveHarness = resolveActiveHarness();
+
+  return (
+    <AppShell initialActiveHarness={initialActiveHarness}>{children}</AppShell>
+  );
 }
