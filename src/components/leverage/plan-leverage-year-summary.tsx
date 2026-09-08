@@ -3,7 +3,7 @@ import { Info } from "lucide-react";
 import { HarnessLogo } from "@/components/layout/harness-logo";
 import { PlanSpendCell } from "@/components/leverage/plan-spend-cell";
 import { PlanLeverageMonthlySparkline } from "@/components/leverage/plan-leverage-sparkline";
-import { PlanLeverageSummaryShare } from "@/components/leverage/plan-leverage-summary-share";
+import { PlanLeverageSummaryDownload } from "@/components/leverage/plan-leverage-summary-download";
 import { Button } from "@/components/ui/button";
 import { MetricSurface, Surface } from "@/components/ui/surface";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -210,13 +210,13 @@ export function PlanLeverageYearSummaryCard({
   summary,
   months,
   layout = "default",
-  showShare = true,
+  showDownload = true,
 }: {
   year: number;
   summary: PlanLeverageYearSummary;
   months: PlanLeverageMonthRow[];
   layout?: "default" | "hero";
-  showShare?: boolean;
+  showDownload?: boolean;
 }) {
   const showHarnessBreakdown = summary.harnessBreakdown.length > 0;
   const leverageTrend = monthlyTrendFromRows(
@@ -239,8 +239,8 @@ export function PlanLeverageYearSummaryCard({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold tracking-tight">Summary of {year}</h2>
-          {showShare ? (
-            <PlanLeverageSummaryShare
+          {showDownload ? (
+            <PlanLeverageSummaryDownload
               year={year}
               summary={summary}
               months={months}

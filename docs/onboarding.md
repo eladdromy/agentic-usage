@@ -7,7 +7,7 @@ Blocking setup wizard at `/setup` for new installs. Guides harness detection, da
 | Condition | Behavior |
 |-----------|----------|
 | `onboardingCompletedAt` set in `.data/settings.json` | App unlocked |
-| Legacy install with Claude events or Cursor CSV rows already in SQLite | Skips wizard (migration) |
+| Legacy install with data but no wizard session (`onboardingStartedAt` unset) | Auto-migrated on first app load |
 | Otherwise | Redirect from `(app)/*` routes to `/setup` |
 
 Completion requires **at least one harness ready**:
@@ -40,7 +40,7 @@ Suggested flow: `both` | `claude` | `cursor` | `none`.
 | `/setup/claude/sync` | Auto full JSONL index |
 | `/setup/claude/subscription` | Per-month plan review + approve |
 | `/setup/cursor/offer` | Both-flow: set up Cursor or skip |
-| `/setup/cursor/upload` | Billing CSV upload (**does not** start project sync) |
+| `/setup/cursor/upload` | Billing CSV upload (**does not** start project sync). Loads local activity dates in a card (spinner → export actions + upload). When `state.vscdb` is present, suggests `from` = earliest local composer activity and `to` = today UTC via `GET /api/cursor/local-export-suggestion` — **Download usage** (direct CSV API) and **Open dashboard** |
 | `/setup/cursor/sync` | Project attach — **required** after upload; auto-starts background sync |
 | `/setup/cursor/subscription` | Per-month plan review + approve |
 | `/setup/complete` | Finalize settings → redirect `/leverage` |
@@ -51,15 +51,16 @@ Suggested flow: `both` | `claude` | `cursor` | `none`.
 
 **Cursor only:** upload → sync → subscription → complete
 
-**Both:** Claude path → offer → (Cursor path or skip)
+**Both:** Claude path → offer → (Cursor path or skip). Finalize at `/setup/complete` sets `activeHarness` to `all` when both harnesses are ready.
 
-When Cursor is skipped in a both-flow, `activeHarness` is set to `all`, `onboardingDeferredCursor` is true, and Plan Leverage shows a banner linking to Settings → Billing CSV.
+When Cursor is skipped in a both-flow, `activeHarness` is set to `all`, `onboardingDeferredCursor` is true, and Plan Leverage shows a banner linking to Settings → Billing CSV. That link switches the navbar harness to **All** before opening Settings so the Billing CSV tab is visible.
 
 ## Settings fields
 
 Stored in `.data/settings.json`:
 
 ```typescript
+onboardingStartedAt: string | null;
 onboardingCompletedAt: string | null;
 onboardingClaudeSubscriptionApproved: boolean;
 onboardingCursorSubscriptionApproved: boolean;
@@ -77,6 +78,7 @@ onboardingDeferredCursor: boolean;
 | Redirect guard | `src/app/(app)/layout.tsx`, `src/app/setup/layout.tsx` |
 | Shared subscription step | `src/components/settings/subscription-plan-review.tsx` |
 | Shared CSV upload | `src/components/cursor/cursor-csv-upload-panel.tsx` |
+| Cursor export link (onboarding) | `src/lib/cursor/local-export-suggestion.ts`, `src/app/api/cursor/local-export-suggestion/route.ts` |
 | Dynamic harness badge | `src/components/layout/harness-select.tsx` |
 | Cursor setup banner (global) | `src/components/cursor/cursor-setup-banner-gate.tsx`, `src/components/cursor/cursor-deferred-banner.tsx` |
 

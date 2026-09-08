@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
-import { isOnboardingComplete } from "@/lib/onboarding/status";
+import { isOnboardingComplete, migrateLegacyOnboardingIfNeeded } from "@/lib/onboarding/status";
 import { resolveActiveHarness } from "@/lib/profile/settings";
 
 export const metadata: Metadata = {
@@ -12,6 +12,8 @@ export const metadata: Metadata = {
 };
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
+  migrateLegacyOnboardingIfNeeded();
+
   if (!isOnboardingComplete()) {
     redirect("/setup");
   }

@@ -52,6 +52,8 @@ export type AppSettings = {
   activeHarness: ActiveHarness | null;
   syncDebounceMinutes: SyncDebounceMinutes;
   syncMethod: SyncMethod;
+  /** Set when the user enters /setup — distinguishes wizard-in-progress from legacy installs. */
+  onboardingStartedAt: string | null;
   onboardingCompletedAt: string | null;
   onboardingClaudeSubscriptionApproved: boolean;
   onboardingCursorSubscriptionApproved: boolean;
@@ -78,6 +80,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   activeHarness: null,
   syncDebounceMinutes: 1,
   syncMethod: "updates_only",
+  onboardingStartedAt: null,
   onboardingCompletedAt: null,
   onboardingClaudeSubscriptionApproved: false,
   onboardingCursorSubscriptionApproved: false,
@@ -192,6 +195,10 @@ export function readSettings(): AppSettings {
       activeHarness: parseActiveHarness(raw.activeHarness),
       syncDebounceMinutes: parseSyncDebounceMinutes(raw.syncDebounceMinutes),
       syncMethod: parseSyncMethod(raw.syncMethod),
+      onboardingStartedAt:
+        typeof raw.onboardingStartedAt === "string"
+          ? raw.onboardingStartedAt
+          : null,
       onboardingCompletedAt:
         typeof raw.onboardingCompletedAt === "string"
           ? raw.onboardingCompletedAt

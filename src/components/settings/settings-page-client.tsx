@@ -161,6 +161,7 @@ export function SettingsPageClient() {
     syncing: routeSyncing,
     activeHarness: contextHarness,
     triggerSync,
+    switchHarness,
   } = useRouteSync();
   const { startProjectSync, syncing: projectSyncing } = useProjectSync();
   const showClaudeSettings =
@@ -215,10 +216,20 @@ export function SettingsPageClient() {
       setSettingsTab("data");
       return;
     }
+    if (param === "billing" && contextHarness === "claude") {
+      void switchHarness("all");
+      return;
+    }
     if (param && !allowedTabValues.includes(param)) {
       setSettingsTab(allowedTabValues[0] ?? "account");
     }
-  }, [allowedTabValues, searchParams, setSettingsTab]);
+  }, [
+    allowedTabValues,
+    contextHarness,
+    searchParams,
+    setSettingsTab,
+    switchHarness,
+  ]);
 
   async function loadProfile() {
     const res = await fetch("/api/profile");

@@ -10,7 +10,10 @@
 #   - your real Claude JSONL logs under ~/.claude/projects/
 #   - cursor-provider-usage.db  (Cursor billing CSV data)
 #   - cursor-bubble-index.db    (Cursor bubble sidecar index)
-#   - settings.json             (claudeHomeOverride and other preferences)
+#
+# Resets Claude onboarding flags in settings.json (onboardingCompletedAt,
+# onboardingClaudeSubscriptionApproved, planOverrides.claude). Path overrides
+# and other preferences are kept.
 #
 # The data dir honors AGENTIC_USAGE_DATA_DIR, defaulting to <repo>/.data.
 #
@@ -48,11 +51,13 @@ for name in "${targets[@]}"; do
   done
 done
 
+node "$repo_root/scripts/patch-settings-onboarding.mjs" claude
+
 if [[ "$deleted_any" -eq 0 ]]; then
   echo "Already clean — no Claude indexed data found in $data_dir"
 else
   echo ""
   echo "Claude indexed data reset in: $data_dir"
-  echo "Kept: cursor-provider-usage.db, cursor-bubble-index.db, settings.json (and your real Claude JSONL logs)."
-  echo "Restart the dev server (npm run dev), then trigger Re-index from Settings."
+  echo "Kept: cursor-provider-usage.db, cursor-bubble-index.db (and your real Claude JSONL logs)."
+  echo "Restart the dev server (npm run dev). If Cursor billing is also empty, you'll return to /setup."
 fi

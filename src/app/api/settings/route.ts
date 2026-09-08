@@ -103,6 +103,12 @@ export async function PUT(request: Request) {
         : body.onboardingDeferredCursor === false
           ? false
           : current.onboardingDeferredCursor,
+    onboardingStartedAt:
+      body.onboardingStartedAt === null
+        ? null
+        : typeof body.onboardingStartedAt === "string"
+          ? body.onboardingStartedAt
+          : current.onboardingStartedAt,
   };
 
   writeSettings(next);

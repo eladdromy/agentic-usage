@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 
+import { CursorCsvExportButtons } from "@/components/cursor/cursor-csv-export-buttons";
 import { CursorCsvUploadPanel } from "@/components/cursor/cursor-csv-upload-panel";
 import { useProjectSync } from "@/components/cursor/project-sync-provider";
+import { useCursorExportSuggestion } from "@/components/cursor/use-cursor-export-suggestion";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +44,7 @@ export function CursorCsvUploadDialog({
   onSyncComplete?: () => void;
 }) {
   const { startProjectSync } = useProjectSync();
+  const exportState = useCursorExportSuggestion(open);
 
   const handleUploaded = useCallback(
     (result: ProviderUsageUploadResult) => {
@@ -65,10 +68,6 @@ export function CursorCsvUploadDialog({
     [onOpenChange, onSyncComplete, onUploaded, startProjectSync],
   );
 
-  useEffect(() => {
-    if (!open) return;
-  }, [open]);
-
   return (
     <Dialog
       open={open}
@@ -80,11 +79,11 @@ export function CursorCsvUploadDialog({
         <DialogHeader>
           <DialogTitle>Upload usage-events CSV</DialogTitle>
           <DialogDescription>
-            Export from your Cursor account billing dashboard. Downloads are
-            often named <span className="font-mono">usage-events</span> and may
-            not include a <span className="font-mono">.csv</span> extension.
+            Download usage or open the dashboard, then upload below.
           </DialogDescription>
         </DialogHeader>
+
+        <CursorCsvExportButtons state={exportState} />
 
         <CursorCsvUploadPanel actionsAlign="end" onUploaded={handleUploaded} />
       </DialogContent>

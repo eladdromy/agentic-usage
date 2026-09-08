@@ -95,6 +95,7 @@ Details: [onboarding.md](./onboarding.md).
 | `/api/cursor/provider-usage/upload` | POST | Import billing CSV + project attach |
 | `/api/cursor/attach-projects` | POST | Re-run project attach on stored CSV rows |
 | `/api/cursor/billing-coverage` | GET | CSV date range, export links, unmatched preview |
+| `/api/cursor/local-export-suggestion` | GET | Pre-upload dashboard export link from local vscdb composer activity (`from` = first local day, `to` = today) |
 
 Default route: `/` → `/leverage` (Plan Leverage). Incomplete onboarding redirects to `/setup`.
 

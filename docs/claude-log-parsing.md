@@ -57,7 +57,7 @@ When `costUSD` is absent, calculated cost uses token buckets × model rates in `
 |----------|-------|
 | Storage | `.data/agentic-usage.db` (data dir honors `AGENTIC_USAGE_DATA_DIR`) |
 | Tables | `claude_usage_events`, `claude_usage_meta` (sync watermarks) |
-| Reset | `npm run reset:claude` (`scripts/reset-claude-data.sh`) deletes the indexed DB to replay the JSONL sync flow; keeps Cursor billing data, `settings.json`, and the real Claude JSONL logs under `~/.claude/projects/`. Restart the dev server after — it holds open SQLite handles. |
+| Reset | `npm run reset:claude` (`scripts/reset-claude-data.sh`) deletes the indexed DB and resets Claude onboarding flags in `settings.json` (`onboardingCompletedAt`, `onboardingClaudeSubscriptionApproved`, `planOverrides.claude`); keeps Cursor billing data and path overrides. Restart the dev server after — it holds open SQLite handles. If Cursor billing is also empty, the app returns to `/setup`. |
 
 ## Key modules
 

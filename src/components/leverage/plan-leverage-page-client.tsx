@@ -90,7 +90,7 @@ export function PlanLeveragePageClient() {
         summary={data.yearSummary}
         months={data.months}
         layout="hero"
-        showShare={false}
+        showDownload={false}
       />
     );
   }

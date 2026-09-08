@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { LoaderCircle, Upload } from "lucide-react";
 
 import { CURSOR_BILLING_IMPORTED_EVENT } from "@/components/cursor/cursor-setup-banner-gate";
 import { Button } from "@/components/ui/button";
 import type { ProviderUsageUploadResult } from "@/lib/cursor/provider-usage-types";
 import { assertProviderUsageUploadFile } from "@/lib/cursor/provider-usage-csv";
+import { cn } from "@/lib/utils";
 
 export function CursorCsvUploadPanel({
   onUploaded,
@@ -17,11 +18,13 @@ export function CursorCsvUploadPanel({
   disabled?: boolean;
   actionsAlign?: "start" | "end";
 }) {
+  const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const zoneDisabled = uploading || disabled;
 
   const pickFile = async (next: File | null) => {
     setError(null);
@@ -65,42 +68,45 @@ export function CursorCsvUploadPanel({
 
   return (
     <div className="space-y-4">
-      <div
-        className={`rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-          dragOver ? "border-primary bg-primary/5" : "border-border/60"
-        }`}
+      <label
+        htmlFor={zoneDisabled ? undefined : inputId}
+        className={cn(
+          "block rounded-xl border-2 border-dashed p-8 text-center transition-colors",
+          dragOver ? "border-primary bg-primary/5" : "border-border/60",
+          zoneDisabled
+            ? "cursor-not-allowed opacity-60"
+            : "cursor-pointer hover:border-primary/50 hover:bg-muted/30",
+        )}
         onDragOver={(e) => {
+          if (zoneDisabled) return;
           e.preventDefault();
           setDragOver(true);
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
+          if (zoneDisabled) return;
           e.preventDefault();
           setDragOver(false);
           void pickFile(e.dataTransfer.files[0] ?? null);
         }}
       >
+        <Upload
+          size={24}
+          className="mx-auto mb-3 text-muted-foreground"
+          aria-hidden="true"
+        />
         <p className="text-sm text-muted-foreground">
-          Drag and drop your usage-events export here, or
+          Drag and drop your usage-events export here, or click to browse
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mt-3"
-          disabled={uploading || disabled}
-          onClick={() => inputRef.current?.click()}
-        >
-          <Upload size={16} aria-hidden="true" />
-          Browse files
-        </Button>
         <input
+          id={inputId}
           ref={inputRef}
           type="file"
-          className="hidden"
+          className="sr-only"
+          disabled={zoneDisabled}
           onChange={(e) => void pickFile(e.target.files?.[0] ?? null)}
         />
-      </div>
+      </label>
 
       {file ? (
         <p className="truncate font-mono text-sm" title={file.name}>
