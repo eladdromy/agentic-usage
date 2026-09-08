@@ -1,6 +1,8 @@
 <h1 align="center">
-  <img src="readme-assets/icon.png" width="40" alt="" style="vertical-align: middle; border-radius: 8px; margin-right: 0.35em;" />
-  Agentic Usage
+  <span style="display: inline-flex; align-items: center; gap: 0.4em;">
+    <img src="readme-assets/icon.png" width="30" alt="" style="border-radius: 6px; display: block;" />
+    Agentic Usage
+  </span>
 </h1>
 
 **Local observability for your coding agent harnesses.** See spend, subscription leverage, and project breakdown — in one dashboard on your machine.
@@ -181,9 +183,6 @@ See [cursor-project-sync-troubleshooting.md](./docs/cursor-project-sync-troubles
 - [ ] Codex CLI harness adapter
 - [ ] Grok Build harness adapter
 - [ ] One-line installer script
-- [x] README screenshots and demo assets
-- [x] First-run onboarding wizard
-- [x] Cursor export shortcuts and project sync UX
 
 Issues and PRs welcome once the repo is public.
 
