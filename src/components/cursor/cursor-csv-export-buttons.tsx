@@ -4,7 +4,6 @@ import { Download, ExternalLink, LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { formatBillingDayRange } from "@/lib/cursor/billing-coverage-shared";
-import type { CursorLocalExportSuggestion } from "@/lib/cursor/local-export-suggestion";
 import type { CursorExportSuggestionState } from "@/components/cursor/use-cursor-export-suggestion";
 
 export function CursorCsvExportButtons({

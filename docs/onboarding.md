@@ -7,7 +7,7 @@ Blocking setup wizard at `/setup` for new installs. Guides harness detection, da
 | Condition | Behavior |
 |-----------|----------|
 | `onboardingCompletedAt` set in `.data/settings.json` | App unlocked |
-| Legacy install with data but no wizard session (`onboardingStartedAt` unset) | Auto-migrated on first app load |
+| Legacy install with data but no wizard session (`onboardingStartedAt` unset) | Auto-migrated on first `(app)` or `/setup` layout load (before wizard session is marked) |
 | Otherwise | Redirect from `(app)/*` routes to `/setup` |
 
 Completion requires **at least one harness ready**:
@@ -75,7 +75,7 @@ onboardingDeferredCursor: boolean;
 | Status / readiness | `src/lib/onboarding/status.ts` |
 | Step routing | `src/lib/onboarding/navigation.ts` |
 | Setup UI | `src/components/setup/`, `src/app/setup/` |
-| Redirect guard | `src/app/(app)/layout.tsx`, `src/app/setup/layout.tsx` |
+| Redirect guard | `src/app/(app)/layout.tsx`, `src/app/setup/layout.tsx` (both run legacy migration) |
 | Shared subscription step | `src/components/settings/subscription-plan-review.tsx` |
 | Shared CSV upload | `src/components/cursor/cursor-csv-upload-panel.tsx` |
 | Cursor export link (onboarding) | `src/lib/cursor/local-export-suggestion.ts`, `src/app/api/cursor/local-export-suggestion/route.ts` |

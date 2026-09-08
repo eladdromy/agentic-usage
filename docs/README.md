@@ -9,6 +9,7 @@
 | [cursor-project-sync-troubleshooting.md](./cursor-project-sync-troubleshooting.md) | Project sync failures, “thousands unmatched”, reset/re-match playbook |
 | [plan-pricing.md](./plan-pricing.md) | Subscription plan mapping and overrides |
 | [onboarding.md](./onboarding.md) | First-run setup wizard, detection, completion criteria |
+| [future-harnesses-codex-grok.md](./future-harnesses-codex-grok.md) | Research: Codex CLI & Grok Build local logs (not implemented) |
 
 ## Key source files
 

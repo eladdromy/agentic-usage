@@ -1,16 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+import type { AppSettings } from "@/lib/profile/settings";
+
 const mockSettings = vi.hoisted(() => {
-  const base = {
+  const base: AppSettings = {
     planMonthlyUsd: null,
     planLabel: null,
-    planSource: "auto" as const,
+    planSource: "auto",
     planOverrides: {},
     claudeHomeOverride: null,
     vscdbPathOverride: null,
-    activeHarness: "cursor" as const,
-    syncDebounceMinutes: 1 as const,
-    syncMethod: "updates_only" as const,
+    activeHarness: "cursor",
+    syncDebounceMinutes: 1,
+    syncMethod: "updates_only",
     onboardingStartedAt: "2026-09-08T10:00:00.000Z",
     onboardingCompletedAt: null,
     onboardingClaudeSubscriptionApproved: true,
@@ -52,7 +54,7 @@ vi.mock("@/lib/cursor/billing-project-attach", () => ({
 
 vi.mock("@/lib/profile/settings", () => ({
   readSettings: () => mockSettings.current,
-  writeSettings: (next: typeof mockSettings.current) => {
+  writeSettings: (next: AppSettings) => {
     mockSettings.current = next;
   },
 }));
@@ -61,8 +63,31 @@ import { providerUsageDbHasRows } from "@/lib/cursor/provider-usage-db";
 import { getEventCount } from "@/lib/db/usage-db";
 import {
   completeOnboarding,
+  isLegacyOnboardingInstall,
   isOnboardingComplete,
+  markOnboardingStarted,
+  migrateLegacyOnboardingIfNeeded,
 } from "@/lib/onboarding/status";
+
+function legacySettings(): AppSettings {
+  return {
+    planMonthlyUsd: null,
+    planLabel: null,
+    planSource: "auto",
+    planOverrides: {},
+    claudeHomeOverride: null,
+    vscdbPathOverride: null,
+    activeHarness: null,
+    syncDebounceMinutes: 1,
+    syncMethod: "updates_only",
+    onboardingStartedAt: null,
+    onboardingCompletedAt: null,
+    onboardingClaudeSubscriptionApproved: false,
+    onboardingCursorSubscriptionApproved: false,
+    onboardingCursorProjectSyncDone: false,
+    onboardingDeferredCursor: false,
+  };
+}
 
 describe("onboarding finalize", () => {
   beforeEach(() => {
@@ -90,5 +115,46 @@ describe("onboarding finalize", () => {
     expect(next.activeHarness).toBe("all");
     expect(next.onboardingCompletedAt).toBeTruthy();
     expect(isOnboardingComplete(next)).toBe(true);
+  });
+});
+
+describe("legacy onboarding migration", () => {
+  beforeEach(() => {
+    mockSettings.current = legacySettings();
+    vi.mocked(getEventCount).mockReturnValue(0);
+    vi.mocked(providerUsageDbHasRows).mockReturnValue(false);
+  });
+
+  it("detects legacy installs with indexed data and no wizard session", () => {
+    vi.mocked(getEventCount).mockReturnValue(42);
+    expect(isLegacyOnboardingInstall()).toBe(true);
+
+    mockSettings.current = {
+      ...legacySettings(),
+      onboardingStartedAt: "2026-09-08T10:00:00.000Z",
+    };
+    expect(isLegacyOnboardingInstall()).toBe(false);
+  });
+
+  it("auto-completes legacy Claude installs on migration", () => {
+    vi.mocked(getEventCount).mockReturnValue(42);
+
+    const migrated = migrateLegacyOnboardingIfNeeded();
+
+    expect(migrated.onboardingCompletedAt).toBeTruthy();
+    expect(migrated.onboardingClaudeSubscriptionApproved).toBe(true);
+    expect(migrated.onboardingStartedAt).toBeNull();
+    expect(isOnboardingComplete(migrated)).toBe(true);
+  });
+
+  it("migrates legacy installs instead of marking wizard started", () => {
+    vi.mocked(providerUsageDbHasRows).mockReturnValue(true);
+
+    const next = markOnboardingStarted();
+
+    expect(next.onboardingCompletedAt).toBeTruthy();
+    expect(next.onboardingCursorSubscriptionApproved).toBe(true);
+    expect(next.onboardingCursorProjectSyncDone).toBe(true);
+    expect(next.onboardingStartedAt).toBeNull();
   });
 });

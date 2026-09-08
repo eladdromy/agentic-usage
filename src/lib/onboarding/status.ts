@@ -103,10 +103,12 @@ export function isLegacyOnboardingInstall(settings?: AppSettings): boolean {
 }
 
 export function markOnboardingStarted(settings?: AppSettings): AppSettings {
-  const current = settings ?? readSettings();
-  if (current.onboardingStartedAt) return current;
+  const afterLegacy = migrateLegacyOnboardingIfNeeded(settings);
+  if (isOnboardingComplete(afterLegacy)) return afterLegacy;
+
+  if (afterLegacy.onboardingStartedAt) return afterLegacy;
   const next: AppSettings = {
-    ...current,
+    ...afterLegacy,
     onboardingStartedAt: new Date().toISOString(),
   };
   writeSettings(next);

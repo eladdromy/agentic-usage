@@ -1,5 +1,7 @@
 # Cursor provider usage CSV
 
+**Related docs:** [future-harnesses-codex-grok.md](./future-harnesses-codex-grok.md) (Codex & Grok use local session logs instead of CSV export)
+
 Cursor **usage-events** CSV exports are the sole billing source for the Cursor harness. **API eq.** uses the billed on-demand amount when present; otherwise it shows a token-based estimate (prefixed with `~`).
 
 ## Spend columns (Spend Logs)

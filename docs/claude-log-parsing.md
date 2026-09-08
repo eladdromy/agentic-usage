@@ -1,5 +1,7 @@
 # Claude log parsing
 
+**Related docs:** [future-harnesses-codex-grok.md](./future-harnesses-codex-grok.md) (Codex & Grok — local logs like Claude, not yet implemented)
+
 ## Source files
 
 Claude Code writes JSONL under:
