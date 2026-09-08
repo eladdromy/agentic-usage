@@ -1,4 +1,7 @@
-import { attributeBillingEventToComposer } from "@/lib/cursor/billing-event-attribution";
+import {
+  attributeBillingEventWithContext,
+  createBillingAttributionContext,
+} from "@/lib/cursor/billing-event-attribution";
 import { buildSubagentParentProjectIndex } from "@/lib/cursor/cursor-subagent-spawn";
 import {
   loadComposerProjectMap,
@@ -14,13 +17,11 @@ import {
 } from "@/lib/cursor/vscdb-bubbles";
 import { formatBillingMonthLabel } from "@/lib/cursor/billing-coverage-shared";
 import {
+  applyProjectAttachBatch,
   queryProviderEventsForProjectAttach,
   queryProjectSyncMonths,
-  updateProviderEventAttributionFailure,
-  updateProviderEventComposerId,
-  clearProviderEventUnmatchReason,
-  updateProviderEventProjectAttach,
   type DbEventForAttach,
+  type ProjectAttachBatchUpdate,
 } from "@/lib/cursor/provider-usage-db";
 
 export type ProjectUnmatchReason =
@@ -56,6 +57,9 @@ const REASON_LABELS: Record<ProjectUnmatchReason, string> = {
   no_project_path: "Composer has no workspace / project path",
 };
 
+const ATTACH_BATCH_SIZE = 50;
+const ATTACH_YIELD_EVERY = 50;
+
 export function unmatchReasonLabel(reason: ProjectUnmatchReason): string {
   return REASON_LABELS[reason];
 }
@@ -77,6 +81,12 @@ export function monthUtcSecBounds(month: string): { fromSec: number; toSec: numb
   const month0 = Number(month.slice(5, 7)) - 1;
   const fromSec = Math.floor(Date.UTC(year, month0, 1) / 1000);
   const toSec = Math.floor(Date.UTC(year, month0 + 1, 1) / 1000) - 1;
+  return { fromSec, toSec };
+}
+
+export function dayUtcSecBounds(fromDay: string, toDay: string): { fromSec: number; toSec: number } {
+  const fromSec = Math.floor(Date.parse(`${fromDay}T00:00:00.000Z`) / 1000);
+  const toSec = Math.floor(Date.parse(`${toDay}T23:59:59.999Z`) / 1000);
   return { fromSec, toSec };
 }
 
@@ -107,14 +117,99 @@ function withMonthMeta(
   return month ? { ...result, month, label: formatBillingMonthLabel(month) } : result;
 }
 
-export function attachProjectsToBillingEvents(
-  options?: { fromSec?: number; toSec?: number; month?: string },
-): BillingProjectAttachResult {
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+function planAttachUpdate(
+  row: DbEventForAttach,
+  composerId: string,
+  needsComposer: boolean,
+  needsProject: boolean,
+  db: ReturnType<typeof getReadonlyCursorDatabase>,
+  composerProjects: Map<string, string>,
+  subagentParentProjects: Map<string, string>,
+): { update: ProjectAttachBatchUpdate; matched: boolean; unmatched: boolean } {
+  if (!composerId) {
+    if (needsProject) {
+      return {
+        update: { type: "project", id: row.id, project: "", unmatchReason: "no_composer_match", composerId: "" },
+        matched: false,
+        unmatched: true,
+      };
+    }
+    return {
+      update: { type: "failure", id: row.id, reason: "no_composer_match" },
+      matched: false,
+      unmatched: true,
+    };
+  }
+
+  if (needsComposer && !needsProject) {
+    return {
+      update: { type: "composer", id: row.id, composerId },
+      matched: true,
+      unmatched: false,
+    };
+  }
+
+  const projectPath = resolveComposerProjectPath(
+    db,
+    composerId,
+    composerProjects,
+    subagentParentProjects,
+  );
+  if (!projectPath) {
+    return {
+      update: {
+        type: "project",
+        id: row.id,
+        project: "",
+        unmatchReason: "no_project_path",
+        composerId,
+      },
+      matched: false,
+      unmatched: true,
+    };
+  }
+
+  return {
+    update: {
+      type: "project",
+      id: row.id,
+      project: projectPath,
+      unmatchReason: null,
+      composerId,
+    },
+    matched: true,
+    unmatched: false,
+  };
+}
+
+async function attachProjectsCore(
+  options?: {
+    fromSec?: number;
+    toSec?: number;
+    month?: string;
+    /** Only rows never matched before (excludes prior failures). */
+    pendingOnly?: boolean;
+    /** Indexed bubble lookup; does not skip workspace project resolution. */
+    fastPath?: boolean;
+    composerProjects?: Map<string, string>;
+    taskV2Dispatches?: ReturnType<typeof loadTaskV2DispatchBubbles>;
+  },
+): Promise<BillingProjectAttachResult> {
   const month = options?.month?.trim();
   const monthBounds = month ? monthUtcSecBounds(month) : null;
-  const queryOptions = month
-    ? { month, fromSec: monthBounds!.fromSec, toSec: monthBounds!.toSec }
-    : options;
+  const queryFromSec = options?.fromSec ?? monthBounds?.fromSec;
+  const queryToSec = options?.toSec ?? monthBounds?.toSec;
+  const queryOptions = {
+    month,
+    fromSec: queryFromSec,
+    toSec: queryToSec,
+    unattachedOnly: true as const,
+    pendingOnly: options?.pendingOnly === true,
+  };
 
   const events = queryProviderEventsForProjectAttach(queryOptions);
   const needsAttach = events.filter(rowNeedsAttach);
@@ -134,9 +229,17 @@ export function attachProjectsToBillingEvents(
   const vscdbAvailable = isVscdbAvailableForAttribution();
 
   if (!vscdbAvailable) {
-    for (const row of needsAttach.filter(rowNeedsProjectAttach)) {
-      updateProviderEventProjectAttach(row.id, "", "vscdb_not_found");
-    }
+    applyProjectAttachBatch(
+      needsAttach
+        .filter(rowNeedsProjectAttach)
+        .map((row) => ({
+          type: "project" as const,
+          id: row.id,
+          project: "",
+          unmatchReason: "vscdb_not_found",
+          composerId: row.composerId.trim(),
+        })),
+    );
     return withMonthMeta(month, {
       scanned: events.length,
       matched: 0,
@@ -146,19 +249,27 @@ export function attachProjectsToBillingEvents(
     });
   }
 
-  const fromSec =
-    options?.fromSec ??
-    monthBounds?.fromSec ??
-    Math.min(...needsAttach.map((r) => r.dateSec)) - 60;
-  const toSec =
-    options?.toSec ??
-    monthBounds?.toSec ??
-    Math.max(...needsAttach.map((r) => r.dateSec)) + 60;
+  const eventFromSec = Math.min(...needsAttach.map((r) => r.dateSec)) - 60;
+  const eventToSec = Math.max(...needsAttach.map((r) => r.dateSec)) + 60;
+  // Bubble lookups follow pending rows in this batch — not the full upload span.
+  const bubbleFromSec = eventFromSec;
+  const bubbleToSec = eventToSec;
+  const fastBubblePath = options?.fastPath !== false;
 
-  const bubbles = loadGlobalBubblesInRange(fromSec, toSec, vscdbPath);
-  const composerProjects = loadComposerProjectMap(vscdbPath);
+  const bubbles = loadGlobalBubblesInRange(bubbleFromSec, bubbleToSec, vscdbPath, {
+    fastPath: fastBubblePath,
+  });
+  const attributionCtx = createBillingAttributionContext(bubbles);
+  const composerProjects =
+    options?.composerProjects ??
+    loadComposerProjectMap(vscdbPath, { scanWorkspaces: true });
   const db = getReadonlyCursorDatabase(vscdbPath);
-  const taskV2Dispatches = loadTaskV2DispatchBubbles(vscdbPath);
+  const taskV2Dispatches = fastBubblePath
+    ? (options?.taskV2Dispatches ?? [])
+    : loadTaskV2DispatchBubbles(vscdbPath, {
+        fromSec: bubbleFromSec,
+        toSec: bubbleToSec,
+      });
   const subagentParentProjects = buildSubagentParentProjectIndex(
     taskV2Dispatches,
     (parentComposerId) =>
@@ -168,23 +279,42 @@ export function attachProjectsToBillingEvents(
   let matched = 0;
   let unmatched = 0;
 
-  if (bubbles.length === 0) {
-    for (const row of needsAttach.filter(rowNeedsProjectAttach)) {
-      updateProviderEventProjectAttach(row.id, "", "no_local_prompts");
-      unmatched += 1;
-    }
+  if (!attributionCtx || bubbles.length === 0) {
+    applyProjectAttachBatch(
+      needsAttach
+        .filter(rowNeedsProjectAttach)
+        .map((row) => ({
+          type: "project" as const,
+          id: row.id,
+          project: "",
+          unmatchReason: "no_local_prompts",
+          composerId: row.composerId.trim(),
+        })),
+    );
     return withMonthMeta(month, {
       scanned: events.length,
       matched: 0,
       skippedCsvProject,
-      unmatched,
+      unmatched: needsAttach.filter(rowNeedsProjectAttach).length,
       vscdbAvailable: true,
     });
   }
 
-  for (const row of needsAttach) {
+  let pendingBatch: ProjectAttachBatchUpdate[] = [];
+
+  const flushBatch = async (forceYield: boolean) => {
+    if (pendingBatch.length === 0) return;
+    applyProjectAttachBatch(pendingBatch);
+    pendingBatch = [];
+    if (forceYield) await yieldEventLoop();
+  };
+
+  for (let index = 0; index < needsAttach.length; index++) {
+    const row = needsAttach[index]!;
+    const batch: ProjectAttachBatchUpdate[] = [];
+
     if (row.projectUnmatchReason.trim()) {
-      clearProviderEventUnmatchReason(row.id);
+      batch.push({ type: "clear_reason", id: row.id });
     }
 
     const parsed: Pick<ProviderUsageParsedRow, "date"> = { date: row.dateIso };
@@ -192,41 +322,31 @@ export function attachProjectsToBillingEvents(
     const needsProject = rowNeedsProjectAttach(row);
 
     let composerId = row.composerId.trim();
-    if (needsComposer) {
-      composerId = attributeBillingEventToComposer(parsed, bubbles) ?? "";
+    if (needsComposer && attributionCtx) {
+      composerId = attributeBillingEventWithContext(parsed, attributionCtx) ?? "";
     }
 
-    if (!composerId) {
-      if (needsProject) {
-        updateProviderEventProjectAttach(row.id, "", "no_composer_match");
-        unmatched += 1;
-      } else if (needsComposer) {
-        updateProviderEventAttributionFailure(row.id, "no_composer_match");
-        unmatched += 1;
-      }
-      continue;
-    }
-
-    if (needsComposer && !needsProject) {
-      updateProviderEventComposerId(row.id, composerId);
-      matched += 1;
-      continue;
-    }
-
-    const projectPath = resolveComposerProjectPath(
-      db,
+    const outcome = planAttachUpdate(
+      row,
       composerId,
+      needsComposer,
+      needsProject,
+      db,
       composerProjects,
       subagentParentProjects,
     );
-    if (!projectPath) {
-      updateProviderEventProjectAttach(row.id, "", "no_project_path", composerId);
-      unmatched += 1;
-      continue;
-    }
+    batch.push(outcome.update);
+    if (outcome.matched) matched += 1;
+    if (outcome.unmatched) unmatched += 1;
 
-    updateProviderEventProjectAttach(row.id, projectPath, null, composerId);
-    matched += 1;
+    pendingBatch.push(...batch);
+
+    const atBatchLimit = pendingBatch.length >= ATTACH_BATCH_SIZE;
+    const atYieldPoint = (index + 1) % ATTACH_YIELD_EVERY === 0;
+    const isLast = index === needsAttach.length - 1;
+    if (atBatchLimit || isLast) {
+      await flushBatch(atYieldPoint && !isLast);
+    }
   }
 
   return withMonthMeta(month, {
@@ -237,6 +357,23 @@ export function attachProjectsToBillingEvents(
     vscdbAvailable: true,
   });
 }
+
+export async function attachProjectsToBillingEvents(
+  options?: {
+    fromSec?: number;
+    toSec?: number;
+    month?: string;
+    pendingOnly?: boolean;
+    fastPath?: boolean;
+    composerProjects?: Map<string, string>;
+    taskV2Dispatches?: ReturnType<typeof loadTaskV2DispatchBubbles>;
+  },
+): Promise<BillingProjectAttachResult> {
+  return attachProjectsCore(options);
+}
+
+/** @deprecated Use attachProjectsToBillingEvents (async). */
+export const attachProjectsToBillingEventsAsync = attachProjectsToBillingEvents;
 
 export function toUnmatchedBillingRow(row: DbEventForAttach & { id: number }): UnmatchedBillingRow | null {
   if (row.project.trim()) return null;

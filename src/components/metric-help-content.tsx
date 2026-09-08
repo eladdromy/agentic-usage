@@ -1,5 +1,44 @@
+import { HarnessLogo } from "@/components/layout/harness-logo";
 import type { ProjectSpendMonthLine } from "@/lib/projects-breakdown-shared";
 import { formatProjectBreakdownUsd } from "@/lib/format";
+
+function groupSpendLinesByMonth(
+  lines: ProjectSpendMonthLine[],
+): { month: string; monthLabel: string; lines: ProjectSpendMonthLine[] }[] {
+  const order: string[] = [];
+  const byMonth = new Map<string, ProjectSpendMonthLine[]>();
+
+  for (const line of lines) {
+    let bucket = byMonth.get(line.month);
+    if (!bucket) {
+      bucket = [];
+      byMonth.set(line.month, bucket);
+      order.push(line.month);
+    }
+    bucket.push(line);
+  }
+
+  return order.map((month) => {
+    const monthLines = byMonth.get(month)!;
+    return {
+      month,
+      monthLabel: monthLines[0]!.monthLabel,
+      lines: monthLines,
+    };
+  });
+}
+
+function SpendCalcLine({ line }: { line: ProjectSpendMonthLine }) {
+  return (
+    <p className="flex items-center gap-1.5 font-mono text-xs leading-relaxed">
+      <HarnessLogo harness={line.harness} className="size-3.5" />
+      <span>
+        ({line.projectApiEqLabel} ÷ {line.totalApiEqLabel}) × {line.planFeeLabel}{" "}
+        = {line.spendLabel}
+      </span>
+    </p>
+  );
+}
 
 const HELP = "space-y-2 text-left text-sm leading-relaxed text-neutral-900";
 
@@ -25,11 +64,9 @@ export function ProjectsSpendHelp() {
 export function ProjectSpendBreakdownTooltip({
   title,
   lines,
-  showHarness,
 }: {
   title: string;
   lines: ProjectSpendMonthLine[];
-  showHarness: boolean;
 }) {
   if (lines.length === 0) {
     return <p>No subscription allocation for this project.</p>;
@@ -42,18 +79,14 @@ export function ProjectSpendBreakdownTooltip({
     <div className="max-w-sm text-left">
       <p className="mb-2 font-semibold leading-snug">{title} Spend</p>
       <div className="max-h-48 space-y-2.5 overflow-y-auto pr-1">
-        {lines.map((line) => (
-          <div key={`${line.month}-${line.harness}`}>
-            <p className="font-medium">
-              {line.monthLabel}
-              {showHarness
-                ? ` (${line.harness === "claude" ? "Claude Code" : "Cursor"})`
-                : null}
-            </p>
-            <p className="font-mono text-xs leading-relaxed">
-              ({line.projectApiEqLabel} ÷ {line.totalApiEqLabel}) × {line.planFeeLabel}{" "}
-              = {line.spendLabel}
-            </p>
+        {groupSpendLinesByMonth(lines).map((group) => (
+          <div key={group.month}>
+            <p className="font-medium">{group.monthLabel}</p>
+            <div className="mt-0.5 space-y-1">
+              {group.lines.map((line) => (
+                <SpendCalcLine key={line.harness} line={line} />
+              ))}
+            </div>
           </div>
         ))}
       </div>

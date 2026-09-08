@@ -46,6 +46,16 @@ CSV upload → store billing rows → scan vscdb in CSV date window only
 
 Re-run attribution without re-uploading: `POST /api/cursor/attach-projects` (optionally `?month=YYYY-MM` for one month). `GET /api/cursor/attach-projects` lists per-month pending row counts for the project sync UI.
 
+After CSV upload, project sync runs **in the background** (one month at a time, sequentially). Only billing months touched by the uploaded file’s date span are synced — e.g. a CSV covering 2026-09-08 syncs September only. Progress appears in a bottom-right toast; the Settings project sync dialog is for status inspection only.
+
+Sync uses `POST /api/cursor/attach-projects/sync` (returns **202 immediately**) and polls `GET /api/cursor/attach-projects/sync` for progress — long work no longer holds an HTTP connection open, so navigation stays responsive in dev. `GET` returns `{ status: "idle" }` when no sync is running; completed jobs are not kept on the server.
+
+Per month, sync: loads Cursor `state.vscdb` prompts/bubbles for the **pending rows’ date window** in that month (not the full CSV span), matches each unattached CSV row to a composer → workspace path, and writes `project` / `composer_id` on billing rows. After upload, only **pending rows in the uploaded CSV date span** are processed (not the whole month or prior failures).
+
+Cursor stores bubbles in `cursorDiskKV` with a unique index on `key`. **`LIKE 'bubbleId:%'` forces a full-table scan** (SQLite cannot use the index); this app uses **`key >= 'bubbleId:' AND key < 'bubbleId;'`** plus a local `.data/cursor-bubble-index.db` sidecar (timestamp index) for full-range scans.
+
+**Upload / scoped attach fast path:** when the sidecar index is not ready, attach reads bubble stubs from **`composerData:{composerId}` header metadata** (indexed KV lookups per composer, ~hundreds of rows) instead of scanning every `bubbleId:` row (~90k+). Before the first month runs, background sync **builds the bubble index once** if missing. Workspace folders are always scanned for project paths (cached for the whole sync job).
+
 ## Model pricing
 
 Token-based **API eq.** uses rates from [Cursor models & pricing](https://cursor.com/docs/models-and-pricing) (Grok, Composer, Auto) plus third-party API rates (Claude, GPT, Gemini, Kimi, GLM, …). Implementation: `src/lib/pricing/model-pricing.ts`.
@@ -53,8 +63,8 @@ Token-based **API eq.** uses rates from [Cursor models & pricing](https://cursor
 | Property | Value |
 |----------|-------|
 | Storage | `.data/cursor-provider-usage.db` |
-| Tables | `provider_usage_events` (`project`, `composer_id`, `project_unmatch_reason`), `provider_usage_imports` |
-| API | `POST /api/cursor/provider-usage/upload`, `POST /api/cursor/attach-projects` |
+| Tables | `provider_usage_events` (`project`, `composer_id`, `project_unmatch_reason`), `provider_usage_imports` (`date_from`, `date_to` per upload) |
+| API | `POST /api/cursor/provider-usage/upload`, `POST /api/cursor/attach-projects` (single month), `POST/GET /api/cursor/attach-projects/sync` (background multi-month) |
 | Dedup | `row_hash` per CSV row |
 
 Export from Cursor billing dashboard as `usage-events` (often without a `.csv` suffix). Upload accepts any file whose name or header matches the usage-events export.
@@ -70,14 +80,15 @@ Both pages query `provider_usage_events` directly — no full vscdb conversation
 
 ## Uploaded period & export links
 
-`GET /api/cursor/billing-coverage` derives date bounds from CSV rows:
+`GET /api/cursor/billing-coverage` derives coverage from CSV uploads and billing rows:
 
-- `dataRange` — first and last calendar day in uploaded data
-- `uploadedMonths` — calendar months with at least one billing row
-- `missingMonths` — calendar months from first upload through today with no rows (gaps are months, not individual days)
+- `dataRange` — first and last calendar day among stored billing rows
+- `imports[].dateFrom` / `dateTo` — first and last calendar day in each uploaded CSV file (stored on import; backfilled from rows for existing imports)
+- **Settings billing coverage dialog** — merges per-CSV spans (overlap or touch) into uploaded ranges; gaps are only **between** upload spans, plus trailing days after the last upload through today. Idle days inside a CSV span are not treated as missing.
+- `uploadedMonths` / `missingMonths` — calendar-month views (used by spend alerts)
 - `periods` — one entry per calendar month in the CSV (with Cursor dashboard export URLs)
-- `exportAll` — full uploaded span
-- `extendToToday` — trailing missing month when the current month has no uploaded rows yet
+- `exportAll` — single export link when merged uploads form one contiguous span; `null` when uploads leave gaps (use per-range links from `uploadedRanges` instead)
+- `extendToToday` — trailing gap after the last CSV upload through today
 
 ## Subscription plan (separate from CSV)
 

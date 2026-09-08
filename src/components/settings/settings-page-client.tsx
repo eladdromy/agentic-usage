@@ -14,13 +14,29 @@ import {
 
 import { BillingGapList } from "@/components/cursor/billing-gap-list";
 import { ProjectSyncPanel } from "@/components/cursor/project-sync-panel";
+import { startProjectSyncRun } from "@/components/cursor/project-sync-run";
+import {
+  showCsvUploadToast,
+  waitForUploadToast,
+} from "@/lib/cursor/csv-upload-feedback";
 import { UnmatchedBillingList } from "@/components/cursor/unmatched-billing-list";
 import { CursorCsvUploadDialog } from "@/components/cursor/csv-upload-dialog";
 import { SettingsPageContentSkeleton } from "@/components/layout/page-loading-skeletons";
 import { useRouteSync } from "@/components/layout/route-sync";
-import { PageHeader, SectionHeader } from "@/components/page-header";
+import { PageHeader } from "@/components/page-header";
 import { HarnessSettingsCard } from "@/components/settings/harness-settings-card";
 import { SubscriptionPlanSettings } from "@/components/settings/subscription-plan-settings";
+import {
+  SettingsActions,
+  SettingsCard,
+  SettingsFieldGrid,
+  SettingsHelpText,
+  SettingsInfoList,
+  SettingsInfoRow,
+  SettingsSubsection,
+  settingsCompactFieldClass,
+  settingsSelectTriggerClass,
+} from "@/components/settings/settings-ui";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
@@ -29,7 +45,6 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { MetricSurface } from "@/components/ui/surface";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { BillingCoveragePayload } from "@/lib/cursor/billing-coverage-shared";
 import type { ProviderUsageUploadResult } from "@/lib/cursor/provider-usage-types";
@@ -39,7 +54,6 @@ import type {
   SyncDebounceMinutes,
   SyncMethod,
 } from "@/lib/profile/settings";
-import { cn } from "@/lib/utils";
 
 type ProfileResponse = {
   claudeHome: string;
@@ -94,7 +108,6 @@ const SYNC_METHOD_OPTIONS: { value: SyncMethod; label: string }[] = [
 const SETTINGS_TAB_ITEMS = [
   { value: "account", label: "Account", icon: UserCircle, harness: "all" as const },
   { value: "data", label: "Data", icon: Database, harness: "all" as const },
-  { value: "sync", label: "Sync", icon: RefreshCw, harness: "claude" as const },
   {
     value: "subscription",
     label: "Subscription",
@@ -131,44 +144,6 @@ function formatPlan(
   return `${plan.label} · $${plan.monthlyUsd}/mo`;
 }
 
-function InfoRowList({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <dl
-      className={cn(
-        "flex w-fit flex-wrap items-start gap-x-8 gap-y-4",
-        className,
-      )}
-    >
-      {children}
-    </dl>
-  );
-}
-
-function InfoRow({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("max-w-md space-y-1", className)}>
-      <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        {label}
-      </dt>
-      <dd className="text-sm leading-relaxed">{value}</dd>
-    </div>
-  );
-}
-
 function applyProfileToForm(
   json: ProfileResponse,
   setters: {
@@ -203,8 +178,7 @@ export function SettingsPageClient() {
   const [reindexing, setReindexing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [projectSyncKey, setProjectSyncKey] = useState(0);
-  const [projectSyncRetry, setProjectSyncRetry] = useState(false);
+  const [projectSyncRefreshKey, setProjectSyncRefreshKey] = useState(0);
   const [projectSyncing, setProjectSyncing] = useState(false);
   const [billingCoverage, setBillingCoverage] =
     useState<BillingCoveragePayload | null>(null);
@@ -212,11 +186,10 @@ export function SettingsPageClient() {
   const tabItems = useMemo(
     () =>
       SETTINGS_TAB_ITEMS.filter((tab) => {
-        if (tab.harness === "claude") return showClaudeSettings;
         if (tab.harness === "cursor") return showCursorSettings;
         return true;
       }),
-    [showClaudeSettings, showCursorSettings],
+    [showCursorSettings],
   );
 
   const allowedTabValues = useMemo(
@@ -242,6 +215,10 @@ export function SettingsPageClient() {
 
   useEffect(() => {
     const param = searchParams.get("tab");
+    if (param === "sync") {
+      setSettingsTab("data");
+      return;
+    }
     if (param && !allowedTabValues.includes(param)) {
       setSettingsTab(allowedTabValues[0] ?? "account");
     }
@@ -290,28 +267,32 @@ export function SettingsPageClient() {
   }, [syncVersion, routeSyncing, loadBillingCoverage]);
 
   async function handleCsvUploaded(result: ProviderUsageUploadResult) {
-    setMessage(
-      `Imported ${result.inserted.toLocaleString()} billing rows` +
-        (result.skipped > 0
-          ? ` (${result.skipped.toLocaleString()} duplicates skipped)`
-          : "") +
-        " — syncing projects by month…",
-    );
+    const outcome = showCsvUploadToast(result);
     await loadBillingCoverage();
     await loadProfile();
-    setProjectSyncRetry(false);
-    setProjectSyncKey((k) => k + 1);
+    if (outcome === "duplicate") return;
+
+    await waitForUploadToast();
+    void startProjectSyncRun({
+      dateFrom: result.dateFrom,
+      dateTo: result.dateTo,
+      onSyncingChange: setProjectSyncing,
+      onComplete: () => {
+        setProjectSyncRefreshKey((k) => k + 1);
+        void loadBillingCoverage();
+      },
+    });
   }
 
   function handleRematchProjects() {
-    setMessage("Syncing projects by month…");
-    setProjectSyncRetry(true);
-    setProjectSyncKey((k) => k + 1);
-  }
-
-  function handleProjectSyncComplete() {
-    setMessage("Project sync finished.");
-    void loadBillingCoverage();
+    void startProjectSyncRun({
+      retryUnmatched: true,
+      onSyncingChange: setProjectSyncing,
+      onComplete: () => {
+        setProjectSyncRefreshKey((k) => k + 1);
+        void loadBillingCoverage();
+      },
+    });
   }
 
   async function saveSyncSettings() {
@@ -338,20 +319,19 @@ export function SettingsPageClient() {
 
   async function reindex() {
     setReindexing(true);
-    setMessage(null);
     try {
       const json = await triggerSync();
       if (!json) throw new Error("Sync failed");
 
       if (json.skipped && json.skipReason === "csv_only") {
-        setMessage("Cursor uses CSV uploads — no log indexing.");
+        toast.info("Cursor uses CSV uploads — no log indexing.");
       } else if (json.skipped && json.skipReason === "debounce") {
         const mins = profile?.settings.syncDebounceMinutes ?? syncDebounceMinutes;
-        setMessage(
+        toast.info(
           `Re-index skipped — last sync was less than ${mins} minute${mins === 1 ? "" : "s"} ago.`,
         );
       } else if (json.skipped && json.skipReason === "no_updates") {
-        setMessage(
+        toast.info(
           json.harness === "cursor"
             ? "Re-index skipped — no vscdb updates since last sync."
             : "Re-index skipped — no log file updates since last sync.",
@@ -360,11 +340,11 @@ export function SettingsPageClient() {
         const modeLabel =
           json.syncMode === "full" ? "Full sync" : "Updates only";
         if (json.harness === "cursor") {
-          setMessage(
+          toast.success(
             `${modeLabel}: indexed ${json.rowsInserted ?? 0} new prompts.`,
           );
         } else {
-          setMessage(
+          toast.success(
             `${modeLabel}: indexed ${json.rowsInserted ?? 0} new rows from ${json.filesScanned ?? 0} files.`,
           );
         }
@@ -374,7 +354,7 @@ export function SettingsPageClient() {
         await loadBillingCoverage();
       }
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Sync failed");
+      toast.error(e instanceof Error ? e.message : "Sync failed");
     } finally {
       setReindexing(false);
     }
@@ -385,7 +365,7 @@ export function SettingsPageClient() {
       <PageHeader
         eyebrow="Configuration"
         title="Settings"
-        description="Account, data paths, sync, subscription plans, and billing imports."
+        description="Account, data paths, subscription plans, and billing imports."
       />
 
       {profile == null ? (
@@ -405,31 +385,31 @@ export function SettingsPageClient() {
           <div className="space-y-6">
             {showClaudeSettings ? (
               <HarnessSettingsCard harness="claude" description="Claude Code account.">
-                <InfoRowList>
-                  <InfoRow
+                <SettingsInfoList>
+                  <SettingsInfoRow
                     label="Email"
                     value={profile?.profile?.emailAddress ?? "—"}
                   />
-                  <InfoRow
+                  <SettingsInfoRow
                     label="Current plan"
                     value={formatPlan(profile?.claudePlan)}
                   />
-                </InfoRowList>
+                </SettingsInfoList>
               </HarnessSettingsCard>
             ) : null}
 
             {showCursorSettings ? (
               <HarnessSettingsCard harness="cursor" description="Cursor account.">
-                <InfoRowList>
-                  <InfoRow
+                <SettingsInfoList>
+                  <SettingsInfoRow
                     label="Email"
                     value={profile?.cursorProfile?.account.cachedEmail ?? "—"}
                   />
-                  <InfoRow
+                  <SettingsInfoRow
                     label="Current plan"
                     value={formatPlan(profile?.cursorPlan)}
                   />
-                </InfoRowList>
+                </SettingsInfoList>
               </HarnessSettingsCard>
             ) : null}
           </div>
@@ -437,18 +417,13 @@ export function SettingsPageClient() {
 
         <TabsContent value="data" className="mt-6">
           <div className="space-y-6">
-            <MetricSurface className="section-stack">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Database size={20} aria-hidden="true" />
-                </div>
-                <SectionHeader
-                  title="App storage"
-                  description="Shared database and configuration paths."
-                />
-              </div>
-              <InfoRowList>
-                <InfoRow
+            <SettingsCard
+              icon={Database}
+              title="App storage"
+              description="Shared database and configuration paths."
+            >
+              <SettingsInfoList>
+                <SettingsInfoRow
                   label="App data"
                   value={
                     <span className="break-all font-mono text-xs">
@@ -456,16 +431,16 @@ export function SettingsPageClient() {
                     </span>
                   }
                 />
-              </InfoRowList>
-            </MetricSurface>
+              </SettingsInfoList>
+            </SettingsCard>
 
             {showClaudeSettings ? (
               <HarnessSettingsCard
                 harness="claude"
-                description="Claude Code log paths and indexed usage."
+                description="Claude Code log paths, indexing on navigation, and sync preferences."
               >
-                <InfoRowList>
-                  <InfoRow
+                <SettingsInfoList>
+                  <SettingsInfoRow
                     label="Claude home"
                     className="max-w-sm"
                     value={
@@ -474,41 +449,121 @@ export function SettingsPageClient() {
                       </span>
                     }
                   />
-                  <InfoRow
+                  <SettingsInfoRow
                     label="Indexed events"
                     className="w-fit shrink-0"
                     value={profile?.claudeEventCount?.toLocaleString() ?? "—"}
                   />
-                  <InfoRow
+                  <SettingsInfoRow
                     label="Last sync"
                     className="w-fit shrink-0"
                     value={profile?.claudeLastSyncAt ?? "Never"}
                   />
-                </InfoRowList>
-                <Button variant="outline" onClick={reindex} disabled={reindexing}>
-                  {reindexing ? (
-                    <>
-                      <LoaderCircle
-                        size={16}
-                        className="animate-spin"
-                        aria-hidden="true"
-                      />
-                      Re-indexing…
-                    </>
-                  ) : (
-                    "Re-index logs"
-                  )}
-                </Button>
+                </SettingsInfoList>
+
+                <SettingsSubsection
+                  title="Manual indexing"
+                  description="Scan Claude Code JSONL logs now. Automatic indexing also runs when you navigate between pages."
+                >
+                  <SettingsActions>
+                    <Button variant="outline" onClick={reindex} disabled={reindexing}>
+                      {reindexing ? (
+                        <>
+                          <LoaderCircle
+                            size={16}
+                            className="animate-spin"
+                            aria-hidden="true"
+                          />
+                          Re-indexing…
+                        </>
+                      ) : (
+                        "Re-index logs"
+                      )}
+                    </Button>
+                  </SettingsActions>
+                </SettingsSubsection>
+
+                <SettingsSubsection title="Automatic sync">
+                  <form
+                    noValidate
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      saveSyncSettings();
+                    }}
+                    className="space-y-4"
+                  >
+                    <SettingsFieldGrid>
+                      <Field className={settingsCompactFieldClass}>
+                        <FieldLabel>Minimum time between syncs</FieldLabel>
+                        <Select
+                          value={String(syncDebounceMinutes)}
+                          onValueChange={(value) =>
+                            setSyncDebounceMinutes(
+                              Number.parseInt(value ?? "1", 10) as SyncDebounceMinutes,
+                            )
+                          }
+                        >
+                          <SelectTrigger className={settingsSelectTriggerClass}>
+                            {
+                              DEBOUNCE_OPTIONS.find(
+                                (o) => o.value === syncDebounceMinutes,
+                              )?.label
+                            }
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DEBOUNCE_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={String(option.value)}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field className="max-w-prose shrink-0">
+                        <FieldLabel>Sync method</FieldLabel>
+                        <div className={settingsCompactFieldClass}>
+                          <Select
+                            value={syncMethod}
+                            onValueChange={(value) =>
+                              setSyncMethod((value as SyncMethod) ?? "updates_only")
+                            }
+                          >
+                            <SelectTrigger className={settingsSelectTriggerClass}>
+                              {selectedLabel(SYNC_METHOD_OPTIONS, syncMethod)}
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SYNC_METHOD_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <SettingsHelpText>
+                          Updates only scans JSONL files changed since the last sync.
+                          Full sync scans every log file. The first sync is always full
+                          when the database is empty.
+                        </SettingsHelpText>
+                      </Field>
+                    </SettingsFieldGrid>
+                    <SettingsActions>
+                      <Button type="submit" disabled={savingSync}>
+                        {savingSync ? "Saving…" : "Save sync settings"}
+                      </Button>
+                    </SettingsActions>
+                  </form>
+                </SettingsSubsection>
               </HarnessSettingsCard>
             ) : null}
 
             {showCursorSettings ? (
               <HarnessSettingsCard
                 harness="cursor"
-                description="Cursor local database and billing CSV imports."
+                description="Cursor local database path and imported billing row counts."
               >
-                <InfoRowList>
-                  <InfoRow
+                <SettingsInfoList>
+                  <SettingsInfoRow
                     label="vscdb path"
                     className="max-w-xs"
                     value={
@@ -517,95 +572,21 @@ export function SettingsPageClient() {
                       </span>
                     }
                   />
-                  <InfoRow
+                  <SettingsInfoRow
                     label="Billing CSV rows"
                     className="w-fit shrink-0"
                     value={profile?.cursorEventCount?.toLocaleString() ?? "—"}
                   />
-                  <InfoRow
+                  <SettingsInfoRow
                     label="Last import"
                     className="w-fit shrink-0"
                     value={profile?.cursorLastSyncAt ?? "Never"}
                   />
-                </InfoRowList>
+                </SettingsInfoList>
               </HarnessSettingsCard>
             ) : null}
           </div>
         </TabsContent>
-
-        {showClaudeSettings ? (
-          <TabsContent value="sync" className="mt-6">
-            <HarnessSettingsCard
-              harness="claude"
-              description="Controls automatic re-index on route navigation and manual Re-index in the Data tab."
-            >
-              <form
-                noValidate
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  saveSyncSettings();
-                }}
-                className="flex w-fit max-w-3xl flex-wrap items-start gap-x-8 gap-y-4"
-              >
-                <Field className="min-w-52">
-                  <FieldLabel>Minimum time between syncs</FieldLabel>
-                  <Select
-                    value={String(syncDebounceMinutes)}
-                    onValueChange={(value) =>
-                      setSyncDebounceMinutes(
-                        Number.parseInt(value ?? "1", 10) as SyncDebounceMinutes,
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full min-w-52 rounded-xl border-border/60 bg-card/80">
-                      {
-                        DEBOUNCE_OPTIONS.find((o) => o.value === syncDebounceMinutes)
-                          ?.label
-                      }
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DEBOUNCE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={String(option.value)}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field className="min-w-52">
-                  <FieldLabel>Sync method</FieldLabel>
-                  <Select
-                    value={syncMethod}
-                    onValueChange={(value) =>
-                      setSyncMethod((value as SyncMethod) ?? "updates_only")
-                    }
-                  >
-                    <SelectTrigger className="w-full min-w-52 rounded-xl border-border/60 bg-card/80">
-                      {selectedLabel(SYNC_METHOD_OPTIONS, syncMethod)}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SYNC_METHOD_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
-                    Updates only scans JSONL files changed since the last sync. Full
-                    sync scans every log file. The first sync is always full when the
-                    database is empty.
-                  </p>
-                </Field>
-                <div className="basis-full">
-                  <Button type="submit" disabled={savingSync}>
-                    {savingSync ? "Saving…" : "Save sync settings"}
-                  </Button>
-                </div>
-              </form>
-            </HarnessSettingsCard>
-          </TabsContent>
-        ) : null}
 
         <TabsContent value="subscription" className="mt-6">
           <SubscriptionPlanSettings
@@ -620,67 +601,47 @@ export function SettingsPageClient() {
               harness="cursor"
               description="Import usage-events CSV exports for billed tokens and cost. After upload, local state.vscdb is scanned only in the CSV date range to attach project paths."
             >
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={() => setUploadOpen(true)}>
-                  <Upload size={16} aria-hidden="true" />
-                  Upload CSV
-                </Button>
-                {billingCoverage?.imports.length ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={projectSyncing}
-                    onClick={handleRematchProjects}
-                  >
-                    {projectSyncing ? (
-                      <LoaderCircle
-                        size={16}
-                        className="animate-spin"
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <RefreshCw size={16} aria-hidden="true" />
-                    )}
-                    Re-match projects
+              <SettingsSubsection divider={false} title="Import & matching">
+                <SettingsActions>
+                  <Button type="button" onClick={() => setUploadOpen(true)}>
+                    <Upload size={16} aria-hidden="true" />
+                    Upload CSV
                   </Button>
-                ) : null}
-              </div>
-              {billingCoverage?.costSourceAvailable ? (
-                <ProjectSyncPanel
-                  syncKey={projectSyncKey}
-                  retryUnmatched={projectSyncRetry}
-                  onSyncingChange={setProjectSyncing}
-                  onComplete={handleProjectSyncComplete}
-                />
-              ) : null}
-              {billingCoverage ? (
-                <>
-                  <BillingGapList coverage={billingCoverage} />
-                  <UnmatchedBillingList coverage={billingCoverage} />
-                </>
-              ) : null}
-              {billingCoverage?.imports.length ? (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    Recent imports
-                  </p>
-                  <ul className="space-y-2 text-sm">
-                    {billingCoverage.imports.slice(0, 5).map((item) => (
-                      <li
-                        key={`${item.filename}:${item.importedAt}`}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2"
-                      >
-                        <span className="truncate font-mono text-xs">
-                          {item.filename}
-                        </span>
-                        <span className="shrink-0 text-muted-foreground">
-                          +{item.rowsInserted.toLocaleString()}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+                  {billingCoverage?.imports.length ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={projectSyncing}
+                      onClick={handleRematchProjects}
+                    >
+                      {projectSyncing ? (
+                        <LoaderCircle
+                          size={16}
+                          className="animate-spin"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <RefreshCw size={16} aria-hidden="true" />
+                      )}
+                      Re-match projects
+                    </Button>
+                  ) : null}
+                </SettingsActions>
+                <SettingsActions>
+                  {billingCoverage?.costSourceAvailable ? (
+                    <ProjectSyncPanel
+                      refreshKey={projectSyncRefreshKey}
+                      syncing={projectSyncing}
+                    />
+                  ) : null}
+                  {billingCoverage ? (
+                    <BillingGapList coverage={billingCoverage} />
+                  ) : null}
+                  {billingCoverage ? (
+                    <UnmatchedBillingList coverage={billingCoverage} />
+                  ) : null}
+                </SettingsActions>
+              </SettingsSubsection>
               <CursorCsvUploadDialog
                 open={uploadOpen}
                 onOpenChange={setUploadOpen}

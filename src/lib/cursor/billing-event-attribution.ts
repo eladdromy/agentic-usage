@@ -111,14 +111,30 @@ function attributeWithContext(
   return upWinner?.cid ?? null;
 }
 
+export type BillingAttributionContext = AttributionContext;
+
+/** Build once per attach run, then reuse for every billing row. */
+export function createBillingAttributionContext(
+  globalBubbles: readonly GlobalBubbleStub[],
+): BillingAttributionContext | null {
+  return buildContext(globalBubbles);
+}
+
+export function attributeBillingEventWithContext(
+  evt: Pick<ProviderUsageParsedRow, "date">,
+  ctx: BillingAttributionContext,
+): string | null {
+  const eventSec = Date.parse(evt.date) / 1000;
+  if (!Number.isFinite(eventSec)) return null;
+  return attributeWithContext(eventSec, ctx);
+}
+
 /** Assign one billing CSV row to exactly one composer, or null when unattributed. */
 export function attributeBillingEventToComposer(
   evt: Pick<ProviderUsageParsedRow, "date">,
   globalBubbles: readonly GlobalBubbleStub[],
 ): string | null {
-  const ctx = buildContext(globalBubbles);
+  const ctx = createBillingAttributionContext(globalBubbles);
   if (!ctx) return null;
-  const eventSec = Date.parse(evt.date) / 1000;
-  if (!Number.isFinite(eventSec)) return null;
-  return attributeWithContext(eventSec, ctx);
+  return attributeBillingEventWithContext(evt, ctx);
 }

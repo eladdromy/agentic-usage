@@ -1,62 +1,58 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { CursorBillingBanner } from "@/components/cursor/cursor-billing-banner";
 import { CursorSpendAlerts } from "@/components/cursor/cursor-spend-alerts";
-import { runProjectSyncByMonth } from "@/lib/cursor/project-sync-client";
+import { startProjectSyncRun } from "@/components/cursor/project-sync-run";
+import {
+  showCsvUploadToast,
+  waitForUploadToast,
+} from "@/lib/cursor/csv-upload-feedback";
 import type { BillingCoveragePayload } from "@/lib/cursor/billing-coverage-shared";
+import type { ProviderUsageUploadResult } from "@/lib/cursor/provider-usage-types";
 
 export function CursorSpendNotices({
   coverage,
-  syncKey = 0,
   onRefresh,
-  onUpload,
 }: {
   coverage: BillingCoveragePayload | null;
-  syncKey?: number;
   /** Reload spend data (after sync completes). */
   onRefresh?: () => void;
-  /** After CSV upload — reload and start project sync. */
-  onUpload?: () => void;
 }) {
   const [syncingProjects, setSyncingProjects] = useState(false);
-  const [manualSyncKey, setManualSyncKey] = useState(0);
 
-  const activeSyncKey = syncKey + manualSyncKey;
+  function runProjectSync(options: {
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    retryUnmatched?: boolean;
+  } = {}) {
+    void startProjectSyncRun({
+      dateFrom: options.dateFrom,
+      dateTo: options.dateTo,
+      retryUnmatched: options.retryUnmatched,
+      onSyncingChange: setSyncingProjects,
+      onComplete: () => onRefresh?.(),
+    });
+  }
 
-  useEffect(() => {
-    if (activeSyncKey === 0) return;
+  async function handleUploaded(result: ProviderUsageUploadResult) {
+    const outcome = showCsvUploadToast(result);
+    onRefresh?.();
+    if (outcome === "duplicate") return;
 
-    let cancelled = false;
-
-    async function run() {
-      setSyncingProjects(true);
-      try {
-        await runProjectSyncByMonth({
-          onMonthChange: () => {},
-        });
-        if (!cancelled) onRefresh?.();
-      } finally {
-        if (!cancelled) setSyncingProjects(false);
-      }
-    }
-
-    void run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeSyncKey, onRefresh]);
+    await waitForUploadToast();
+    runProjectSync({ dateFrom: result.dateFrom, dateTo: result.dateTo });
+  }
 
   return (
     <>
-      <CursorBillingBanner coverage={coverage} onUploaded={onUpload} />
+      <CursorBillingBanner coverage={coverage} onUploaded={handleUploaded} />
       {coverage?.costSourceAvailable ? (
         <CursorSpendAlerts
           coverage={coverage}
           syncingProjects={syncingProjects}
-          onSyncProjects={() => setManualSyncKey((k) => k + 1)}
+          onSyncProjects={() => runProjectSync({ retryUnmatched: true })}
         />
       ) : null}
     </>

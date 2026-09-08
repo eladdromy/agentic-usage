@@ -1,3 +1,4 @@
+import type { GlobalBubbleStub } from "@/lib/cursor/billing-event-attribution";
 import { parseBubbleCreatedAtSecFromRaw } from "@/lib/cursor/parse-bubble-created-at";
 import {
   extractSpawnedSubagentComposerIdsFromRaw,
@@ -8,7 +9,13 @@ import {
   cursorVscdbExists,
   getResolvedVscdbPath,
 } from "@/lib/cursor/path";
-import type { GlobalBubbleStub } from "@/lib/cursor/billing-event-attribution";
+import {
+  BUBBLE_KEY_MAX,
+  BUBBLE_KEY_MIN,
+  isCursorBubbleIndexReady,
+  loadGlobalBubblesForAttach,
+  queryIndexedBubbleKeysInRange,
+} from "@/lib/cursor/cursor-bubble-index";
 import {
   CURSOR_DISK_KV_TABLE,
   cursorDiskKvTableExists,
@@ -18,27 +25,12 @@ import { readSettings } from "@/lib/profile/settings";
 
 const BUFFER_SEC = 60;
 
-function composerIdFromBubbleKey(key: string): string | null {
-  if (!key.startsWith("bubbleId:")) return null;
-  return key.split(":")[1]?.trim() || null;
-}
-
-function bubbleTypeFromRaw(raw: string): 1 | 2 | null {
-  try {
-    const parsed = JSON.parse(raw) as { type?: unknown };
-    const t = parsed.type;
-    if (t === 1 || t === 2) return t;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 /** Load user + agent bubbles from global vscdb for a billing date window only. */
 export function loadGlobalBubblesInRange(
   fromSec: number,
   toSec: number,
   dbPath?: string,
+  options?: { fastPath?: boolean },
 ): GlobalBubbleStub[] {
   const resolved =
     dbPath ??
@@ -46,44 +38,7 @@ export function loadGlobalBubblesInRange(
 
   if (!cursorVscdbExists(resolved)) return [];
 
-  try {
-    const db = getReadonlyCursorDatabase(resolved);
-    if (!cursorDiskKvTableExists(db)) return [];
-
-    const roughFrom = Math.floor(fromSec - BUFFER_SEC);
-    const roughTo = Math.ceil(toSec + BUFFER_SEC);
-
-    const rows = db
-      .prepare(
-        `SELECT key, CAST(value AS TEXT) AS value
-         FROM ${CURSOR_DISK_KV_TABLE}
-         WHERE key LIKE 'bubbleId:%'
-           AND json_valid(CAST(value AS TEXT))
-           AND CAST(json_extract(CAST(value AS TEXT), '$.type') AS INTEGER) IN (1, 2)
-           AND unixepoch(json_extract(CAST(value AS TEXT), '$.createdAt')) >= ?
-           AND unixepoch(json_extract(CAST(value AS TEXT), '$.createdAt')) <= ?`,
-      )
-      .all(roughFrom, roughTo) as { key: string; value: string }[];
-
-    const stubs: GlobalBubbleStub[] = [];
-    for (const row of rows) {
-      const composerId = composerIdFromBubbleKey(row.key);
-      const bubbleType = bubbleTypeFromRaw(row.value);
-      const createdAtSec = parseBubbleCreatedAtSecFromRaw(row.value);
-      if (!composerId || !bubbleType || createdAtSec == null) continue;
-      if (
-        createdAtSec < fromSec - BUFFER_SEC ||
-        createdAtSec > toSec + BUFFER_SEC
-      ) {
-        continue;
-      }
-      stubs.push({ composerId, createdAtSec, bubbleType });
-    }
-
-    return stubs;
-  } catch {
-    return [];
-  }
+  return loadGlobalBubblesForAttach(fromSec, toSec, resolved, options);
 }
 
 export function resolveVscdbPathForAttribution(): string {
@@ -95,7 +50,10 @@ export function isVscdbAvailableForAttribution(): boolean {
 }
 
 /** All `task_v2` dispatch bubbles (for subagent → parent project roll-up). */
-export function loadTaskV2DispatchBubbles(dbPath?: string): TaskV2DispatchBubble[] {
+export function loadTaskV2DispatchBubbles(
+  dbPath?: string,
+  range?: { fromSec: number; toSec: number },
+): TaskV2DispatchBubble[] {
   const resolved =
     dbPath ??
     getResolvedVscdbPath(readSettings().vscdbPathOverride ?? null);
@@ -106,19 +64,66 @@ export function loadTaskV2DispatchBubbles(dbPath?: string): TaskV2DispatchBubble
     const db = getReadonlyCursorDatabase(resolved);
     if (!cursorDiskKvTableExists(db)) return [];
 
-    const rows = db
-      .prepare(
+    const roughFrom =
+      range != null ? Math.floor(range.fromSec - BUFFER_SEC) : null;
+    const roughTo = range != null ? Math.ceil(range.toSec + BUFFER_SEC) : null;
+
+    if (
+      roughFrom != null &&
+      roughTo != null &&
+      isCursorBubbleIndexReady(resolved)
+    ) {
+      const keys = queryIndexedBubbleKeysInRange(roughFrom, roughTo, resolved);
+      const getKv = db.prepare(
         `SELECT key, CAST(value AS TEXT) AS value
          FROM ${CURSOR_DISK_KV_TABLE}
-         WHERE key LIKE 'bubbleId:%'
-           AND json_valid(CAST(value AS TEXT))
-           AND CAST(json_extract(CAST(value AS TEXT), '$.type') AS INTEGER) = 2
-           AND CAST(value AS TEXT) LIKE '%"name":"task_v2"%'`,
-      )
-      .all() as { key: string; value: string }[];
+         WHERE key = ?`,
+      );
+
+      const out: TaskV2DispatchBubble[] = [];
+      for (const key of keys) {
+        const row = getKv.get(key) as { key: string; value: string } | undefined;
+        if (!row?.value.includes('"name":"task_v2"')) continue;
+
+        const parentComposerId = parseComposerIdFromBubbleKey(row.key);
+        if (!parentComposerId) continue;
+        if (extractSpawnedSubagentComposerIdsFromRaw(row.value).length === 0) {
+          continue;
+        }
+        out.push({
+          key: row.key,
+          parentComposerId,
+          raw: row.value,
+        });
+      }
+      return out;
+    }
+
+    const select = db.prepare(
+      `SELECT key, CAST(value AS TEXT) AS value
+       FROM ${CURSOR_DISK_KV_TABLE}
+       WHERE key >= ?
+         AND key < ?`,
+    );
 
     const out: TaskV2DispatchBubble[] = [];
-    for (const row of rows) {
+    for (const row of select.iterate(BUBBLE_KEY_MIN, BUBBLE_KEY_MAX) as Iterable<{
+      key: string;
+      value: string;
+    }>) {
+      if (!row.value.includes('"name":"task_v2"')) continue;
+
+      if (roughFrom != null && roughTo != null) {
+        const createdAtSec = parseBubbleCreatedAtSecFromRaw(row.value);
+        if (
+          createdAtSec == null ||
+          createdAtSec < roughFrom ||
+          createdAtSec > roughTo
+        ) {
+          continue;
+        }
+      }
+
       const parentComposerId = parseComposerIdFromBubbleKey(row.key);
       if (!parentComposerId) continue;
       if (extractSpawnedSubagentComposerIdsFromRaw(row.value).length === 0) {

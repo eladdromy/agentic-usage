@@ -64,8 +64,6 @@ flowchart LR
 
 Default route: `/` → `/leverage` (Plan Leverage).
 
-Legacy redirects (permanent): `/plan-leverage` → `/leverage`, `/api/plan-leverage` → `/api/leverage`.
-
 ## Security
 
 All data stays on the local machine. No auth, no cloud, no outbound telemetry.

@@ -5,7 +5,11 @@ import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { HarnessSettingsCard } from "@/components/settings/harness-settings-card";
-import { SectionHeader } from "@/components/page-header";
+import {
+  SettingsActions,
+  SettingsBlockTitle,
+  settingsSelectTriggerClass,
+} from "@/components/settings/settings-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -106,7 +110,20 @@ function draftFromOverride(
   };
 }
 
-function buildHarnessDraft(data: PlanMonthsResponse): HarnessDraft {
+type YearDraft = {
+  months: string[];
+  rows: Record<string, MonthDraft>;
+};
+
+type HarnessPlanState = {
+  years: number[];
+  detectedPlan: HarnessDraft["detectedPlan"];
+  tiers: PlanTierPreset[];
+  activeYear: number;
+  draftsByYear: Record<number, YearDraft>;
+};
+
+function yearDraftFromResponse(data: PlanMonthsResponse): YearDraft {
   const rows: Record<string, MonthDraft> = {};
   for (const month of data.months) {
     rows[month] = draftFromOverride(
@@ -114,13 +131,21 @@ function buildHarnessDraft(data: PlanMonthsResponse): HarnessDraft {
       data.resolvedByMonth[month],
     );
   }
+  return { months: data.months, rows };
+}
+
+function harnessDraftFromState(state: HarnessPlanState): HarnessDraft {
+  const yearDraft = state.draftsByYear[state.activeYear] ?? {
+    months: [],
+    rows: {},
+  };
   return {
-    year: data.year,
-    years: data.years,
-    months: data.months,
-    detectedPlan: data.detectedPlan,
-    tiers: data.tiers,
-    rows,
+    year: state.activeYear,
+    years: state.years,
+    months: yearDraft.months,
+    detectedPlan: state.detectedPlan,
+    tiers: state.tiers,
+    rows: yearDraft.rows,
   };
 }
 
@@ -198,55 +223,115 @@ function HarnessPlanSection({
   harness: HarnessKind;
   harnessLabel: string;
 }) {
-  const [draft, setDraft] = useState<HarnessDraft | null>(null);
+  const [state, setState] = useState<HarnessPlanState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingYear, setLoadingYear] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const loadHarness = useCallback(
-    async (year?: number) => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ harness });
-        if (year != null) params.set("year", String(year));
-        const res = await fetch(`/api/settings/plan-months?${params.toString()}`);
-        if (!res.ok) throw new Error("Failed to load plan months");
-        const json = (await res.json()) as PlanMonthsResponse;
-        setDraft(buildHarnessDraft(json));
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to load plans");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [harness],
-  );
+  const fetchPlanMonths = useCallback(async (year?: number) => {
+    const params = new URLSearchParams({ harness });
+    if (year != null) params.set("year", String(year));
+    const res = await fetch(`/api/settings/plan-months?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to load plan months");
+    return (await res.json()) as PlanMonthsResponse;
+  }, [harness]);
 
   useEffect(() => {
-    void loadHarness();
-  }, [loadHarness]);
+    let cancelled = false;
+
+    async function run() {
+      setLoading(true);
+      try {
+        const json = await fetchPlanMonths();
+        if (cancelled) return;
+        setState({
+          years: json.years,
+          detectedPlan: json.detectedPlan,
+          tiers: json.tiers,
+          activeYear: json.year,
+          draftsByYear: { [json.year]: yearDraftFromResponse(json) },
+        });
+      } catch (e) {
+        if (!cancelled) {
+          toast.error(e instanceof Error ? e.message : "Failed to load plans");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchPlanMonths]);
+
+  async function switchYear(nextYear: number) {
+    if (!state || state.activeYear === nextYear) return;
+
+    if (state.draftsByYear[nextYear]) {
+      setState((current) =>
+        current ? { ...current, activeYear: nextYear } : current,
+      );
+      return;
+    }
+
+    setLoadingYear(nextYear);
+    try {
+      const json = await fetchPlanMonths(nextYear);
+      setState((current) =>
+        current
+          ? {
+              ...current,
+              activeYear: nextYear,
+              years: json.years,
+              detectedPlan: json.detectedPlan,
+              tiers: json.tiers,
+              draftsByYear: {
+                ...current.draftsByYear,
+                [nextYear]: yearDraftFromResponse(json),
+              },
+            }
+          : current,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load plans");
+    } finally {
+      setLoadingYear(null);
+    }
+  }
 
   function updateRow(month: string, patch: Partial<MonthDraft>) {
-    setDraft((current) => {
+    setState((current) => {
       if (!current) return current;
-      const existing = current.rows[month] ?? {
+      const yearDraft = current.draftsByYear[current.activeYear];
+      if (!yearDraft) return current;
+      const existing = yearDraft.rows[month] ?? {
         tierId: AUTO_PLAN_TIER_ID,
         label: "",
         monthlyUsd: "",
       };
       return {
         ...current,
-        rows: {
-          ...current.rows,
-          [month]: { ...existing, ...patch },
+        draftsByYear: {
+          ...current.draftsByYear,
+          [current.activeYear]: {
+            ...yearDraft,
+            rows: {
+              ...yearDraft.rows,
+              [month]: { ...existing, ...patch },
+            },
+          },
         },
       };
     });
   }
 
   function handleTierChange(month: string, tierId: string) {
-    if (!draft) return;
+    if (!state) return;
     if (tierId === AUTO_PLAN_TIER_ID) {
-      const resolved = draft.detectedPlan;
+      const resolved = state.detectedPlan;
       updateRow(month, {
         tierId,
         label: resolved?.label ?? "",
@@ -262,7 +347,7 @@ function HarnessPlanSection({
       });
       return;
     }
-    const preset = draft.tiers.find((tier) => tier.id === tierId);
+    const preset = state.tiers.find((tier) => tier.id === tierId);
     if (!preset) return;
     updateRow(month, {
       tierId,
@@ -272,20 +357,32 @@ function HarnessPlanSection({
   }
 
   async function saveHarness() {
-    if (!draft) return;
+    if (!state) return;
     setSaving(true);
     try {
       const settingsRes = await fetch("/api/settings");
       const settings = (await settingsRes.json()) as {
         planOverrides?: PlanOverridesByHarness;
       };
-      const existingHarnessOverrides = settings.planOverrides?.[harness];
-      const yearOverrides = overridesFromDraft(harness, draft);
-      const mergedHarnessOverrides = mergeHarnessPlanOverrides(
-        existingHarnessOverrides,
-        draft.year,
-        yearOverrides,
-      );
+      let mergedHarnessOverrides = settings.planOverrides?.[harness] ?? {};
+
+      for (const [yearKey, yearDraft] of Object.entries(state.draftsByYear)) {
+        const year = Number.parseInt(yearKey, 10);
+        const yearOverrides = overridesFromDraft(harness, {
+          year,
+          years: state.years,
+          months: yearDraft.months,
+          detectedPlan: state.detectedPlan,
+          tiers: state.tiers,
+          rows: yearDraft.rows,
+        });
+        mergedHarnessOverrides = mergeHarnessPlanOverrides(
+          mergedHarnessOverrides,
+          year,
+          yearOverrides,
+        );
+      }
+
       const nextOverrides: PlanOverridesByHarness = {
         ...(settings.planOverrides ?? {}),
         [harness]: mergedHarnessOverrides,
@@ -297,7 +394,22 @@ function HarnessPlanSection({
       });
       if (!res.ok) throw new Error("Save failed");
       toast.success(`${harnessLabel} subscription plans saved.`);
-      await loadHarness(draft.year);
+
+      const json = await fetchPlanMonths(state.activeYear);
+      setState((current) =>
+        current
+          ? {
+              ...current,
+              years: json.years,
+              detectedPlan: json.detectedPlan,
+              tiers: json.tiers,
+              draftsByYear: {
+                ...current.draftsByYear,
+                [current.activeYear]: yearDraftFromResponse(json),
+              },
+            }
+          : current,
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -305,7 +417,7 @@ function HarnessPlanSection({
     }
   }
 
-  if (loading && !draft) {
+  if (loading && !state) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
@@ -314,23 +426,26 @@ function HarnessPlanSection({
     );
   }
 
-  if (!draft) return null;
+  if (!state) return null;
 
-  const planDescription = draft.detectedPlan
-    ? `Auto-detected today: ${draft.detectedPlan.label} ($${draft.detectedPlan.monthlyUsd}/mo). Override individual months when your tier changed.`
+  const draft = harnessDraftFromState(state);
+  const yearLoading = loadingYear === state.activeYear;
+
+  const planDescription = state.detectedPlan
+    ? `Auto-detected today: ${state.detectedPlan.label} ($${state.detectedPlan.monthlyUsd}/mo). Override individual months when your tier changed.`
     : "Set the subscription tier per month when auto-detection is unavailable.";
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <SectionHeader title="Monthly plans" description={planDescription} />
-        {draft.years.length > 0 ? (
+        <SettingsBlockTitle title="Monthly plans" description={planDescription} />
+        {state.years.length > 0 ? (
           <Tabs
-            value={String(draft.year)}
-            onValueChange={(value) => void loadHarness(Number.parseInt(value ?? "", 10))}
+            value={String(state.activeYear)}
+            onValueChange={(value) => void switchYear(Number.parseInt(value ?? "", 10))}
           >
             <TabsList variant="line" className="h-9 gap-1">
-              {draft.years.map((y) => (
+              {state.years.map((y) => (
                 <TabsTrigger key={y} value={String(y)} className="px-3">
                   {y}
                 </TabsTrigger>
@@ -340,9 +455,14 @@ function HarnessPlanSection({
         ) : null}
       </div>
 
-      {draft.months.length === 0 ? (
+      {yearLoading ? (
+        <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+          <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+          Loading {state.activeYear} plans…
+        </div>
+      ) : draft.months.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No usage data for {draft.year}. Import logs or billing CSV first, then set
+          No usage data for {state.activeYear}. Import logs or billing CSV first, then set
           monthly plans here.
         </p>
       ) : (
@@ -375,21 +495,21 @@ function HarnessPlanSection({
                         handleTierChange(month, value ?? AUTO_PLAN_TIER_ID)
                       }
                     >
-                      <SelectTrigger className="w-56 max-w-full truncate rounded-xl border-border/60 bg-card/80">
+                      <SelectTrigger className={settingsSelectTriggerClass}>
                         {tierTriggerLabel(
                           row.tierId,
                           row,
-                          draft.tiers,
-                          draft.detectedPlan,
+                          state.tiers,
+                          state.detectedPlan,
                         )}
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={AUTO_PLAN_TIER_ID}>
-                          {draft.detectedPlan
-                            ? `Auto (${draft.detectedPlan.label} · $${draft.detectedPlan.monthlyUsd}/mo)`
+                          {state.detectedPlan
+                            ? `Auto (${state.detectedPlan.label} · $${state.detectedPlan.monthlyUsd}/mo)`
                             : "Auto-detected"}
                         </SelectItem>
-                        {draft.tiers.map((tier) => (
+                        {state.tiers.map((tier) => (
                           <SelectItem key={tier.id} value={tier.id}>
                             {formatPlanTierOptionLabel(tier)}
                           </SelectItem>
@@ -436,9 +556,11 @@ function HarnessPlanSection({
         </Table>
       )}
 
-      <Button type="button" onClick={() => void saveHarness()} disabled={saving}>
-        {saving ? "Saving…" : `Save ${harnessLabel} plans`}
-      </Button>
+      <SettingsActions>
+        <Button type="button" onClick={() => void saveHarness()} disabled={saving}>
+          {saving ? "Saving…" : `Save ${harnessLabel} plans`}
+        </Button>
+      </SettingsActions>
     </div>
   );
 }

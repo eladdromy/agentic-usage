@@ -40,7 +40,6 @@ export function RawSpendPageClient() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [projectSyncKey, setProjectSyncKey] = useState(0);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
 
@@ -150,12 +149,7 @@ export function RawSpendPageClient() {
       {(harness === "cursor" || harness === "all") && !isInitialLoad ? (
         <CursorSpendNotices
           coverage={data?.billingCoverage ?? null}
-          syncKey={projectSyncKey}
           onRefresh={() => setRefreshKey((k) => k + 1)}
-          onUpload={() => {
-            setRefreshKey((k) => k + 1);
-            setProjectSyncKey((k) => k + 1);
-          }}
         />
       ) : null}
 
@@ -167,11 +161,11 @@ export function RawSpendPageClient() {
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Project</span>
-                <ProjectLabelFilter refreshKey={projectSyncKey + refreshKey} />
+                <ProjectLabelFilter refreshKey={refreshKey} />
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Model</span>
-                <ModelFilter refreshKey={projectSyncKey + refreshKey} />
+                <ModelFilter refreshKey={refreshKey} />
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Timeframe</span>

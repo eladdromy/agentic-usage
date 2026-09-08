@@ -17,7 +17,7 @@ export default function SettingsPage() {
           <PageHeader
             eyebrow="Configuration"
             title="Settings"
-            description="Account, data paths, sync, subscription plans, and billing imports."
+            description="Account, data paths, subscription plans, and billing imports."
           />
           <SettingsPageContentSkeleton />
         </div>

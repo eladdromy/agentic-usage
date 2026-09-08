@@ -14,7 +14,7 @@ export function CursorBillingBanner({
   onUploaded,
 }: {
   coverage: BillingCoveragePayload | null;
-  onUploaded?: () => void;
+  onUploaded?: (result: ProviderUsageUploadResult) => void;
 }) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -30,10 +30,9 @@ export function CursorBillingBanner({
       `Imported ${result.inserted.toLocaleString()} rows` +
         (result.skipped > 0
           ? ` (${result.skipped.toLocaleString()} duplicates skipped)`
-          : "") +
-        " — syncing projects by month…",
+          : ""),
     );
-    onUploaded?.();
+    onUploaded?.(result);
   };
 
   if (!showBanner && !notice) return null;

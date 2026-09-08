@@ -58,7 +58,9 @@ function getDatabase(): Database.Database {
       filename TEXT NOT NULL,
       imported_at TEXT NOT NULL,
       rows_inserted INTEGER NOT NULL DEFAULT 0,
-      rows_skipped INTEGER NOT NULL DEFAULT 0
+      rows_skipped INTEGER NOT NULL DEFAULT 0,
+      date_from TEXT,
+      date_to TEXT
     );
   `);
 
@@ -86,6 +88,32 @@ function getDatabase(): Database.Database {
       `ALTER TABLE provider_usage_events ADD COLUMN composer_id TEXT NOT NULL DEFAULT ''`,
     );
   }
+
+  const importCols = conn
+    .prepare(`PRAGMA table_info(provider_usage_imports)`)
+    .all() as { name: string }[];
+  if (!importCols.some((c) => c.name === "date_from")) {
+    conn.exec(`ALTER TABLE provider_usage_imports ADD COLUMN date_from TEXT`);
+  }
+  if (!importCols.some((c) => c.name === "date_to")) {
+    conn.exec(`ALTER TABLE provider_usage_imports ADD COLUMN date_to TEXT`);
+  }
+  conn.exec(`
+    UPDATE provider_usage_imports
+    SET date_from = (
+      SELECT MIN(substr(date_iso, 1, 10))
+      FROM provider_usage_events e
+      WHERE e.source_filename = provider_usage_imports.filename
+        AND e.imported_at = provider_usage_imports.imported_at
+    ),
+    date_to = (
+      SELECT MAX(substr(date_iso, 1, 10))
+      FROM provider_usage_events e
+      WHERE e.source_filename = provider_usage_imports.filename
+        AND e.imported_at = provider_usage_imports.imported_at
+    )
+    WHERE date_from IS NULL OR date_to IS NULL
+  `);
 
   return conn;
 }
@@ -168,16 +196,26 @@ export function importProviderUsageRows(
   tx(rows);
 
   const skipped = rows.length - inserted;
+  const csvDays = rows
+    .map((row) => row.date.slice(0, 10))
+    .filter((day) => /^\d{4}-\d{2}-\d{2}$/.test(day))
+    .sort();
+  const dateFrom = csvDays[0] ?? null;
+  const dateTo = csvDays.length > 0 ? csvDays[csvDays.length - 1]! : null;
+
   db.prepare(
-    `INSERT INTO provider_usage_imports (filename, imported_at, rows_inserted, rows_skipped)
-     VALUES (?, ?, ?, ?)`,
-  ).run(filename, importedAt, inserted, skipped);
+    `INSERT INTO provider_usage_imports (
+      filename, imported_at, rows_inserted, rows_skipped, date_from, date_to
+    ) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(filename, importedAt, inserted, skipped, dateFrom, dateTo);
 
   return {
     inserted,
     skipped,
     totalParsed: rows.length,
     filename,
+    dateFrom,
+    dateTo,
   };
 }
 
@@ -462,11 +500,13 @@ export function queryProviderUsageImports(): {
   importedAt: string;
   rowsInserted: number;
   rowsSkipped: number;
+  dateFrom: string | null;
+  dateTo: string | null;
 }[] {
   const db = getDatabase();
   const rows = db
     .prepare(
-      `SELECT filename, imported_at, rows_inserted, rows_skipped
+      `SELECT filename, imported_at, rows_inserted, rows_skipped, date_from, date_to
        FROM provider_usage_imports ORDER BY imported_at DESC LIMIT 50`,
     )
     .all() as {
@@ -474,6 +514,8 @@ export function queryProviderUsageImports(): {
     imported_at: string;
     rows_inserted: number;
     rows_skipped: number;
+    date_from: string | null;
+    date_to: string | null;
   }[];
 
   return rows.map((r) => ({
@@ -481,6 +523,8 @@ export function queryProviderUsageImports(): {
     importedAt: r.imported_at,
     rowsInserted: r.rows_inserted,
     rowsSkipped: r.rows_skipped,
+    dateFrom: r.date_from,
+    dateTo: r.date_to,
   }));
 }
 
@@ -671,6 +715,10 @@ export function queryProviderEventsForProjectAttach(options?: {
   toSec?: number;
   /** UTC calendar month `YYYY-MM` */
   month?: string;
+  /** Skip rows that already have both project and composer_id. */
+  unattachedOnly?: boolean;
+  /** Skip rows that already failed matching (have project_unmatch_reason). */
+  pendingOnly?: boolean;
 }): DbEventForAttach[] {
   const db = getDatabase();
   const conditions: string[] = [];
@@ -687,6 +735,19 @@ export function queryProviderEventsForProjectAttach(options?: {
   if (options?.month) {
     conditions.push("strftime('%Y-%m', date_iso) = ?");
     params.push(options.month);
+  }
+  if (options?.unattachedOnly !== false) {
+    conditions.push("(TRIM(composer_id) = '' OR TRIM(project) = '')");
+  }
+  if (options?.pendingOnly) {
+    conditions.push(`(
+      (TRIM(project) = '' AND TRIM(project_unmatch_reason) = '')
+      OR (
+        TRIM(project) != ''
+        AND TRIM(composer_id) = ''
+        AND TRIM(project_unmatch_reason) = ''
+      )
+    )`);
   }
 
   const where =
@@ -781,6 +842,62 @@ export function updateProviderEventProjectAttach(
     .run(project, unmatchReason ?? "", id);
 }
 
+export type ProjectAttachBatchUpdate =
+  | { type: "clear_reason"; id: number }
+  | { type: "composer"; id: number; composerId: string }
+  | { type: "failure"; id: number; reason: string }
+  | {
+      type: "project";
+      id: number;
+      project: string;
+      unmatchReason: string | null;
+      composerId: string;
+    };
+
+export function applyProjectAttachBatch(updates: ProjectAttachBatchUpdate[]): void {
+  if (updates.length === 0) return;
+
+  const db = getDatabase();
+  const clearReason = db.prepare(
+    `UPDATE provider_usage_events SET project_unmatch_reason = '' WHERE id = ?`,
+  );
+  const setComposer = db.prepare(
+    `UPDATE provider_usage_events SET composer_id = ? WHERE id = ?`,
+  );
+  const setFailure = db.prepare(
+    `UPDATE provider_usage_events SET project_unmatch_reason = ? WHERE id = ?`,
+  );
+  const setProject = db.prepare(
+    `UPDATE provider_usage_events
+     SET project = ?, project_unmatch_reason = ?, composer_id = ?
+     WHERE id = ?`,
+  );
+
+  db.transaction(() => {
+    for (const update of updates) {
+      switch (update.type) {
+        case "clear_reason":
+          clearReason.run(update.id);
+          break;
+        case "composer":
+          setComposer.run(update.composerId, update.id);
+          break;
+        case "failure":
+          setFailure.run(update.reason, update.id);
+          break;
+        case "project":
+          setProject.run(
+            update.project,
+            update.unmatchReason ?? "",
+            update.composerId,
+            update.id,
+          );
+          break;
+      }
+    }
+  })();
+}
+
 export function queryProjectAttributionStats(): {
   total: number;
   matched: number;
@@ -791,8 +908,8 @@ export function queryProjectAttributionStats(): {
     .prepare(
       `SELECT
          COUNT(*) AS total,
-         SUM(CASE WHEN TRIM(project) != '' THEN 1 ELSE 0 END) AS matched,
-         SUM(CASE WHEN TRIM(project) = '' THEN 1 ELSE 0 END) AS unmatched
+         COALESCE(SUM(CASE WHEN TRIM(project) != '' THEN 1 ELSE 0 END), 0) AS matched,
+         COALESCE(SUM(CASE WHEN TRIM(project) = '' THEN 1 ELSE 0 END), 0) AS unmatched
        FROM provider_usage_events`,
     )
     .get() as { total: number; matched: number; unmatched: number };

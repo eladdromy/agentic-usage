@@ -13,15 +13,13 @@ import {
 } from "@/lib/cursor/billing-project-attach";
 import { isVscdbAvailableForAttribution } from "@/lib/cursor/vscdb-bubbles";
 import {
+  buildBillingCoverageFromImports,
   buildCsvExportPeriods,
+  buildExportAllFromUploadedRanges,
   buildMissingMonths,
   buildUploadedMonths,
-  cursorUsageDashboardUrl,
   type BillingCoveragePayload,
   type BillingExportAll,
-  type BillingGapRange,
-  type BillingMonthRange,
-  type BillingPeriodRange,
 } from "@/lib/cursor/billing-coverage-shared";
 
 export type {
@@ -33,11 +31,14 @@ export type {
 } from "@/lib/cursor/billing-coverage-shared";
 
 export {
+  buildBillingCoverageFromImports,
   buildCsvExportPeriods,
+  buildExportAllFromUploadedRanges,
   buildMissingMonths,
   buildUploadedMonths,
   buildMissingDayRanges,
-  buildUploadedDayRanges,
+  buildUploadedRangesFromImportSpans,
+  billingImportRecordsToSpans,
   cursorUsageDashboardUrl,
   formatBillingDayRange,
   formatBillingMonthLabel,
@@ -75,18 +76,26 @@ export function buildBillingCoveragePayload(): BillingCoveragePayload {
       ? { from: sortedDays[0]!, to: sortedDays[sortedDays.length - 1]! }
       : null;
 
-  const exportAll = dataRange
-    ? toExportRange(dataRange.from, dataRange.to)
-    : null;
+  const imports = queryProviderUsageImports();
+  const { uploadedRanges, missingRanges } = buildBillingCoverageFromImports(
+    imports,
+    today,
+  );
+
+  const exportAll =
+    uploadedRanges.length > 0
+      ? buildExportAllFromUploadedRanges(
+          uploadedRanges,
+          dataRange ? toExportRange(dataRange.from, dataRange.to) : null,
+        )
+      : dataRange
+        ? toExportRange(dataRange.from, dataRange.to)
+        : null;
 
   let extendToToday: BillingExportAll | null = null;
-  const trailingMissing = missingMonths[missingMonths.length - 1];
-  if (trailingMissing && dataRange && trailingMissing.month === today.slice(0, 7)) {
-    extendToToday = {
-      from: trailingMissing.from,
-      to: trailingMissing.to,
-      exportUrl: trailingMissing.exportUrl,
-    };
+  const trailingMissing = missingRanges[missingRanges.length - 1];
+  if (trailingMissing && trailingMissing.to === today) {
+    extendToToday = trailingMissing;
   }
 
   return {
@@ -100,7 +109,7 @@ export function buildBillingCoveragePayload(): BillingCoveragePayload {
     periods,
     exportAll,
     extendToToday,
-    imports: queryProviderUsageImports(),
+    imports,
     projectAttribution: buildProjectAttributionPayload(),
     projectSyncPending,
   };
@@ -114,14 +123,14 @@ function buildProjectAttributionPayload(): BillingCoveragePayload["projectAttrib
 
   return {
     vscdbAvailable: isVscdbAvailableForAttribution(),
-    total: stats.total,
-    matched: stats.matched,
-    unmatched: stats.unmatched,
+    total: stats.total ?? 0,
+    matched: stats.matched ?? 0,
+    unmatched: stats.unmatched ?? 0,
     unmatchedPreview,
   };
 }
 
 /** @deprecated CSV-only mode has no log gaps; always false */
-export function monthHasBillingGap(_month: string): boolean {
+export function monthHasBillingGap(): boolean {
   return false;
 }

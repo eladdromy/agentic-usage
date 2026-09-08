@@ -17,7 +17,14 @@ export default function PlanLeveragePage() {
           <PageHeader
             eyebrow="Analytics"
             title="Plan Leverage"
-            description="Monthly API-equivalent spend divided by your plan spend."
+            description={
+              <>
+                How much usage value you get for what you pay — leverage from subsidized
+                subscription usage.
+                <br />
+                Expand a month to see per-harness breakdown.
+              </>
+            }
           />
           <PlanLeveragePageContentSkeleton />
         </div>

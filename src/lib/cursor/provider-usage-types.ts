@@ -54,6 +54,10 @@ export interface ProviderUsageUploadResult {
   skipped: number;
   totalParsed: number;
   filename: string;
+  /** First calendar day in the uploaded CSV file */
+  dateFrom: string | null;
+  /** Last calendar day in the uploaded CSV file */
+  dateTo: string | null;
 }
 
 export interface ProviderUsageEventsPayload {

@@ -3,6 +3,7 @@ import type {
   ProjectSyncMonthState,
   ProjectSyncMonthsPayload,
 } from "@/lib/cursor/project-sync-types";
+import type { ProjectSyncBackgroundJob } from "@/lib/cursor/project-sync-background";
 
 export async function fetchProjectSyncMonths(): Promise<ProjectSyncMonthsPayload> {
   const res = await fetch("/api/cursor/attach-projects");
@@ -10,13 +11,33 @@ export async function fetchProjectSyncMonths(): Promise<ProjectSyncMonthsPayload
   return (await res.json()) as ProjectSyncMonthsPayload;
 }
 
+export type AttachProjectsOptions = {
+  fromDay?: string | null;
+  toDay?: string | null;
+  pendingOnly?: boolean;
+  fastPath?: boolean;
+};
+
+/** Single-month attach (blocking). Prefer background sync for multi-month runs. */
 export async function attachProjectsForMonth(
   month: string,
+  options: AttachProjectsOptions = {},
 ): Promise<BillingProjectAttachResult> {
-  const res = await fetch(
-    `/api/cursor/attach-projects?month=${encodeURIComponent(month)}`,
-    { method: "POST" },
-  );
+  const params = new URLSearchParams({ month });
+  if (options.fromDay && options.toDay) {
+    params.set("from", options.fromDay);
+    params.set("to", options.toDay);
+  }
+  if (options.pendingOnly) {
+    params.set("pendingOnly", "1");
+  }
+  if (options.fastPath === false) {
+    params.set("fastPath", "0");
+  }
+
+  const res = await fetch(`/api/cursor/attach-projects?${params.toString()}`, {
+    method: "POST",
+  });
   const json = (await res.json()) as BillingProjectAttachResult & { error?: string };
   if (!res.ok) throw new Error(json.error ?? "Project sync failed");
   return json;
@@ -29,49 +50,96 @@ function monthStateFromInfo(
   return { ...info, status };
 }
 
+const POLL_INTERVAL_MS = 750;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchBackgroundSyncJob(): Promise<ProjectSyncBackgroundJob | null> {
+  const res = await fetch("/api/cursor/attach-projects/sync");
+  if (!res.ok) throw new Error("Failed to load project sync status");
+  const json = (await res.json()) as ProjectSyncBackgroundJob | { status: "idle" };
+  if ("status" in json && json.status === "idle") return null;
+  return json as ProjectSyncBackgroundJob;
+}
+
+async function startBackgroundSync(options: {
+  months?: string[];
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  onlyPending?: boolean;
+  retryUnmatched?: boolean;
+}): Promise<ProjectSyncBackgroundJob> {
+  const res = await fetch("/api/cursor/attach-projects/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options),
+  });
+  const json = (await res.json()) as ProjectSyncBackgroundJob & { error?: string };
+  if (!res.ok) throw new Error(json.error ?? "Failed to start project sync");
+  return json;
+}
+
 export async function runProjectSyncByMonth(options: {
   months?: string[];
+  dateFrom?: string | null;
+  dateTo?: string | null;
   /** When false, also re-run months that have unmatched rows from a prior sync. */
   onlyPending?: boolean;
   retryUnmatched?: boolean;
   onMonthChange: (month: string, state: ProjectSyncMonthState) => void;
 }): Promise<void> {
-  const payload = await fetchProjectSyncMonths();
-  const monthInfos = payload.months;
-  const targetMonths = options.months ?? monthInfos.map((m) => m.month);
-  const onlyPending = options.onlyPending !== false;
-  const retryUnmatched = options.retryUnmatched === true;
+  const existing = await fetchBackgroundSyncJob();
+  if (existing?.status === "running") {
+    await pollBackgroundSyncJob(existing.id, options.onMonthChange);
+    return;
+  }
 
-  for (const month of targetMonths) {
-    const info = monthInfos.find((m) => m.month === month);
-    if (!info) continue;
+  const job = await startBackgroundSync({
+    months: options.months,
+    dateFrom: options.dateFrom,
+    dateTo: options.dateTo,
+    onlyPending: options.onlyPending !== false,
+    retryUnmatched: options.retryUnmatched === true,
+  });
 
-    const shouldSkip =
-      onlyPending &&
-      info.pendingRows === 0 &&
-      !(retryUnmatched && info.unmatchedRows > 0);
-    if (shouldSkip) {
-      options.onMonthChange(month, monthStateFromInfo(info, "skipped"));
-      continue;
+  for (const month of job.months) {
+    options.onMonthChange(month.month, month);
+  }
+
+  await pollBackgroundSyncJob(job.id, options.onMonthChange);
+}
+
+async function pollBackgroundSyncJob(
+  jobId: string,
+  onMonthChange: (month: string, state: ProjectSyncMonthState) => void,
+): Promise<void> {
+  let lastSnapshot = "";
+  let sawRunning = false;
+
+  while (true) {
+    const job = await fetchBackgroundSyncJob();
+
+    if (job?.id === jobId) {
+      sawRunning = job.status === "running" || sawRunning;
+
+      const snapshot = JSON.stringify(job.months);
+      if (snapshot !== lastSnapshot) {
+        lastSnapshot = snapshot;
+        for (const month of job.months) {
+          onMonthChange(month.month, month);
+        }
+      }
+
+      if (job.status !== "running") {
+        break;
+      }
+    } else if (sawRunning) {
+      break;
     }
 
-    options.onMonthChange(month, monthStateFromInfo(info, "in_progress"));
-
-    try {
-      const result = await attachProjectsForMonth(month);
-      options.onMonthChange(month, {
-        ...info,
-        status: "done",
-        matched: result.matched,
-        unmatched: result.unmatched,
-      });
-    } catch (e) {
-      options.onMonthChange(month, {
-        ...info,
-        status: "error",
-        error: e instanceof Error ? e.message : "Sync failed",
-      });
-    }
+    await sleep(POLL_INTERVAL_MS);
   }
 }
 
