@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { BarChart3, FolderKanban, LoaderCircle, Receipt, Settings } from "lucide-react";
 
+import { CursorSetupBannerGate } from "@/components/cursor/cursor-setup-banner-gate";
 import { HarnessSelect } from "@/components/layout/harness-select";
 import { RouteSyncProvider, useRouteSync } from "@/components/layout/route-sync";
 import { ProjectSyncProvider } from "@/components/cursor/project-sync-provider";
@@ -129,6 +130,7 @@ function AppShellFrame({ children }: { children: React.ReactNode }) {
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10 md:py-14">
+        <CursorSetupBannerGate />
         {children}
       </main>
     </div>

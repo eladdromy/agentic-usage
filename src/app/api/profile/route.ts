@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { claudeConfigExists, claudeHomeExists } from "@/lib/claude/discovery";
-import { getClaudeHome, getDataDir } from "@/lib/claude/path";
+import {
+  getClaudeHome,
+  getDataDir,
+  getResolvedClaudeHome,
+} from "@/lib/claude/path";
 import {
   detectCursorPlanFromProfile,
   readCursorProfile,
@@ -17,6 +21,12 @@ import {
   getResolvedVscdbPath,
 } from "@/lib/cursor/path";
 import { getEventCount, getLastSyncAt } from "@/lib/db/usage-db";
+import {
+  buildOnboardingStatus,
+  needsCursorSetup,
+  resolveEffectiveHarness,
+  resolveHarnessNavOptions,
+} from "@/lib/onboarding/status";
 import {
   detectClaudePlanFromProfile,
   readClaudeProfile,
@@ -44,11 +54,15 @@ export async function GET() {
   const plan = resolvePlanConfig(activeHarness);
   const claudePlan = resolvePlanConfig("claude");
   const cursorPlan = resolvePlanConfig("cursor");
+  const harnessAvailability = resolveHarnessNavOptions(settings);
+  const effectiveHarness = resolveEffectiveHarness(settings, harnessAvailability);
+  const onboarding = buildOnboardingStatus(settings);
 
   return NextResponse.json({
-    claudeHome: getClaudeHome(),
+    claudeHome: getResolvedClaudeHome(settings.claudeHomeOverride),
+    defaultClaudeHome: getClaudeHome(),
     dataDir: getDataDir(),
-    claudeHomeExists: claudeHomeExists(),
+    claudeHomeExists: claudeHomeExists(settings.claudeHomeOverride),
     claudeConfigExists: claudeConfigExists(),
     vscdbPath,
     defaultVscdbPath: getDefaultGlobalDbPath(),
@@ -81,6 +95,11 @@ export async function GET() {
     plan,
     claudePlan,
     cursorPlan,
+    harnessAvailability,
+    detectedHarnesses: onboarding.detected,
+    effectiveHarness,
+    onboardingDeferredCursor: settings.onboardingDeferredCursor,
+    showDeferredCursorBanner: needsCursorSetup(settings),
     settings,
   });
 }

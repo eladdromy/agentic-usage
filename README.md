@@ -2,8 +2,6 @@
 
 **Local observability for your coding agent harnesses.** See spend, subscription leverage, and project breakdown — in one dashboard on your machine.
 
-![Plan Leverage dashboard — monthly API-equivalent spend vs subscription cost](./readme-assets/demo-hero.png)
-
 License: PolyForm Noncommercial · Local-only · No telemetry
 
 ---
@@ -35,28 +33,6 @@ Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 
 - Codex and additional harness adapters
 - One-line install (`curl … \| bash`) — dev install below for now
-
----
-
-## Screenshots
-
-### Plan Leverage
-
-Monthly API-equivalent spend divided by subscription cost — with year summaries, per-harness breakdown, and shareable snapshots.
-
-![Plan Leverage — year summary, harness table, and monthly breakdown](./readme-assets/demo-plan-leverage.png)
-
-### Spend Logs
-
-Per-request token spend with filters by project, model, and date range.
-
-![Spend Logs — filtered request table with token and API-equivalent columns](./readme-assets/demo-spend-logs.png)
-
-### Projects
-
-All-time spend allocated by project/workspace, with per-harness drill-down.
-
-![Projects breakdown — spend and API-equivalent cost by project](./readme-assets/demo-projects.png)
 
 ---
 
@@ -93,11 +69,36 @@ npm start
 ## First run
 
 1. Start the dev server (above).
-2. Open **Settings** and confirm the active harness (or choose **All harnesses**).
-3. For harnesses that use billing CSV exports, upload your **usage-events** CSV from the provider billing dashboard.
-4. For harnesses that write session JSONL logs, click **Re-index** once — after that, indexing runs automatically on navigation.
+2. Open [http://localhost:3000](http://localhost:3000) — the **setup wizard** runs automatically on first launch.
+3. Follow the guided steps: harness detection, log indexing or CSV import, project sync (Cursor), and subscription approval.
 
-Spend Logs populate as data is indexed or imported. Plan Leverage and Projects fill in once there is spend to analyze.
+The wizard blocks analytics pages until at least one harness is fully configured. See [docs/onboarding.md](./docs/onboarding.md) for step details.
+
+After setup, Claude logs re-index on navigation; Cursor spend comes from uploaded billing CSV.
+
+---
+
+## Screenshots
+
+![Plan Leverage dashboard — monthly API-equivalent spend vs subscription cost](./readme-assets/demo-hero.png)
+
+### Plan Leverage
+
+Monthly API-equivalent spend divided by subscription cost — with year summaries, per-harness breakdown, and shareable snapshots.
+
+![Plan Leverage — year summary, harness table, and monthly breakdown](./readme-assets/demo-plan-leverage.png)
+
+### Spend Logs
+
+Per-request token spend with filters by project, model, and date range.
+
+![Spend Logs — filtered request table with token and API-equivalent columns](./readme-assets/demo-spend-logs.png)
+
+### Projects
+
+All-time spend allocated by project/workspace, with per-harness drill-down.
+
+![Projects breakdown — spend and API-equivalent cost by project](./readme-assets/demo-projects.png)
 
 ---
 
@@ -107,7 +108,8 @@ Spend Logs populate as data is indexed or imported. Plan Leverage and Projects f
 |----------|---------|---------|
 | `AGENTIC_USAGE_DATA_DIR` | `./.data` | SQLite index and app settings |
 | `AGENTIC_USAGE_ANONYMIZE` | off | Replace project **display** names/paths in API responses (for README screenshots). Filter values stay real so Spend Logs project filters still work. |
-| `CLAUDE_HOME` | `~/.claude` | Claude Code data directory |
+| `CLAUDE_CONFIG_DIR` | `~/.claude` | Claude Code config directory (official) |
+| `CLAUDE_HOME` | — | Legacy Claude config override; used only when `CLAUDE_CONFIG_DIR` is unset |
 | `VSCDB_PATH` | Cursor global `state.vscdb` | Override IDE state DB path |
 
 When `AGENTIC_USAGE_ANONYMIZE=1`, only labels shown in the UI are anonymized — not internal filter keys or database queries.

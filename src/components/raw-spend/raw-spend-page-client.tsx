@@ -40,8 +40,26 @@ export function RawSpendPageClient() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [claudeHome, setClaudeHome] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetch("/api/profile")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { claudeHome?: string } | null) => {
+        if (!cancelled && json?.claudeHome) {
+          setClaudeHome(json.claudeHome);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const fetchPage = useCallback(
     async (pageNum: number, append: boolean) => {
@@ -135,7 +153,7 @@ export function RawSpendPageClient() {
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="Usage"
+        eyebrow="Audit"
         title="Spend Logs"
         description={
           harness === "all"
@@ -194,6 +212,7 @@ export function RawSpendPageClient() {
               rows={data?.rows ?? []}
               loading={loading}
               filtered={hasActiveSpendFilters(searchParams)}
+              claudeHome={claudeHome}
             />
           )}
 

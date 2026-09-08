@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "screenshots": "bash scripts/capture-readme-screenshots.sh",
     "screenshots:verify": "node scripts/verify-no-leaks.mjs",
-    "reset:cursor": "bash scripts/reset-cursor-data.sh"
+    "reset:cursor": "bash scripts/reset-cursor-data.sh",
+    "reset:claude": "bash scripts/reset-claude-data.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

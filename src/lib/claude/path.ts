@@ -1,10 +1,22 @@
 import os from "os";
 import path from "path";
 
+function claudeHomeFromEnv(): string | null {
+  const configDir = process.env.CLAUDE_CONFIG_DIR?.trim();
+  if (configDir) return path.resolve(configDir);
+  const legacyHome = process.env.CLAUDE_HOME?.trim();
+  if (legacyHome) return path.resolve(legacyHome);
+  return null;
+}
+
 export function getClaudeHome(): string {
-  const raw = process.env.CLAUDE_HOME?.trim();
-  if (raw) return path.resolve(raw);
-  return path.join(os.homedir(), ".claude");
+  return claudeHomeFromEnv() ?? path.join(os.homedir(), ".claude");
+}
+
+export function getResolvedClaudeHome(override: string | null | undefined): string {
+  const trimmed = override?.trim();
+  if (trimmed) return path.resolve(trimmed);
+  return getClaudeHome();
 }
 
 export function getClaudeGlobalConfigPath(): string {

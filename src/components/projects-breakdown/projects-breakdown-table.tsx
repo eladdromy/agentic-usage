@@ -31,7 +31,6 @@ import type {
   ProjectBreakdownRow,
   ProjectSpendMonthLine,
 } from "@/lib/projects-breakdown-shared";
-import type { ActiveHarness } from "@/lib/profile/settings";
 import { cn } from "@/lib/utils";
 
 const PROJECT_HEAD = "max-w-0 whitespace-normal text-left";
@@ -39,10 +38,41 @@ const PROJECT_CELL = "max-w-0 align-top whitespace-normal text-left";
 const NUMERIC = "w-[5.5rem] text-center tabular-nums";
 const REQUESTS_COL = "w-[6.5rem] text-center tabular-nums";
 const RANGE_COL = "w-[12rem] text-center whitespace-nowrap tabular-nums";
+const EXPAND_SLOT = "inline-flex w-4 shrink-0 items-center justify-center";
+const META_COL_SINGLE = "w-10 min-w-10 max-w-10 px-0.5 text-center";
+const META_COL_DUAL = "w-7 min-w-7 max-w-7 px-0.5 text-center";
+const META_COL_DUAL_EXPAND = "w-11 min-w-11 max-w-11 px-0.5 text-center";
 const HEAD = "bg-muted/40 text-xs font-medium tracking-wide uppercase";
 const SUB_ROW = "bg-muted/65 hover:bg-muted/75";
 const WRAP_LABEL =
   "line-clamp-2 overflow-hidden break-words [overflow-wrap:anywhere] leading-snug";
+
+function resolveMetaColumn(rows: ProjectBreakdownRow[]) {
+  const hasDualHarnessRows = rows.some((row) => row.harnesses.length > 1);
+  const showExpandCol = rows.some((row) => row.harnessBreakdown.length > 1);
+
+  if (!hasDualHarnessRows) {
+    return {
+      showExpandCol: false,
+      metaColClass: META_COL_SINGLE,
+      metaColWidth: "2.5rem",
+    };
+  }
+
+  if (showExpandCol) {
+    return {
+      showExpandCol: true,
+      metaColClass: META_COL_DUAL_EXPAND,
+      metaColWidth: "2.75rem",
+    };
+  }
+
+  return {
+    showExpandCol: false,
+    metaColClass: META_COL_DUAL,
+    metaColWidth: "1.75rem",
+  };
+}
 
 function ProjectCell({
   label,
@@ -118,14 +148,16 @@ function SpendCell({
 function DataRow({
   row,
   harnessBreakdownRow,
-  showHarness,
+  showExpandCol,
+  metaColClass,
   expandable = false,
   expanded = false,
   onToggle,
 }: {
   row: ProjectBreakdownRow;
   harnessBreakdownRow?: ProjectBreakdownHarnessRow;
-  showHarness: boolean;
+  showExpandCol: boolean;
+  metaColClass: string;
   expandable?: boolean;
   expanded?: boolean;
   onToggle?: () => void;
@@ -157,36 +189,36 @@ function DataRow({
       tabIndex={expandable ? 0 : undefined}
       aria-expanded={expandable ? expanded : undefined}
     >
-      {showHarness ? (
-        <>
-          <TableCell className="w-10 px-2 text-center">
-            {expandable ? (
-              expanded ? (
-                <ChevronDown
-                  size={16}
-                  aria-hidden="true"
-                  className="text-muted-foreground"
-                />
-              ) : (
-                <ChevronRight
-                  size={16}
-                  aria-hidden="true"
-                  className="text-muted-foreground"
-                />
-              )
-            ) : null}
-          </TableCell>
-          <TableCell className="w-[3.5rem] align-middle text-center">
-            <span className="inline-flex justify-center">
-              {isSubRow ? (
-                <HarnessLogo harness={harnessBreakdownRow.harness} className="size-4" />
-              ) : (
-                <HarnessStack harnesses={row.harnesses} />
-              )}
+      <TableCell className={cn(metaColClass, "align-top")}>
+        <span className="inline-flex items-center pt-0.5">
+          {showExpandCol ? (
+            <span className={EXPAND_SLOT}>
+              {expandable ? (
+                expanded ? (
+                  <ChevronDown
+                    size={16}
+                    aria-hidden="true"
+                    className="text-muted-foreground"
+                  />
+                ) : (
+                  <ChevronRight
+                    size={16}
+                    aria-hidden="true"
+                    className="text-muted-foreground"
+                  />
+                )
+              ) : null}
             </span>
-          </TableCell>
-        </>
-      ) : null}
+          ) : null}
+          {isSubRow ? (
+            <HarnessLogo harness={harnessBreakdownRow.harness} className="size-4 shrink-0" />
+          ) : row.harnesses.length > 1 ? (
+            <HarnessStack harnesses={row.harnesses} logoClassName="size-4" />
+          ) : row.harnesses[0] ? (
+            <HarnessLogo harness={row.harnesses[0]} className="size-4 shrink-0" />
+          ) : null}
+        </span>
+      </TableCell>
       <TableCell className={PROJECT_CELL}>
         {isSubRow ? (
           <span className="flex items-center gap-2 text-muted-foreground">
@@ -218,19 +250,22 @@ function DataRow({
 
 function ProjectRow({
   row,
-  showHarness,
+  showExpandCol,
+  metaColClass,
 }: {
   row: ProjectBreakdownRow;
-  showHarness: boolean;
+  showExpandCol: boolean;
+  metaColClass: string;
 }) {
-  const canExpand = showHarness && row.harnessBreakdown.length > 1;
+  const canExpand = showExpandCol && row.harnessBreakdown.length > 1;
   const [expanded, setExpanded] = useState(false);
 
   return (
     <>
       <DataRow
         row={row}
-        showHarness={showHarness}
+        showExpandCol={showExpandCol}
+        metaColClass={metaColClass}
         expandable={canExpand}
         expanded={expanded}
         onToggle={() => setExpanded((value) => !value)}
@@ -241,7 +276,8 @@ function ProjectRow({
               key={`${row.rowKey}-${harnessRow.harness}`}
               row={row}
               harnessBreakdownRow={harnessRow}
-              showHarness={showHarness}
+              showExpandCol={showExpandCol}
+              metaColClass={metaColClass}
             />
           ))
         : null}
@@ -262,17 +298,15 @@ export function ProjectsBreakdownTableSkeleton() {
 }
 
 export function ProjectsBreakdownTable({
-  harness,
   rows,
   loading,
   filtered = false,
 }: {
-  harness: ActiveHarness;
   rows: ProjectBreakdownRow[];
   loading: boolean;
   filtered?: boolean;
 }) {
-  const showHarness = harness === "all";
+  const { showExpandCol, metaColClass, metaColWidth } = resolveMetaColumn(rows);
 
   if (loading) {
     return <ProjectsBreakdownTableSkeleton />;
@@ -292,12 +326,7 @@ export function ProjectsBreakdownTable({
     <Surface className="overflow-hidden">
       <Table className="w-full table-fixed">
         <colgroup>
-          {showHarness ? (
-            <>
-              <col className="w-10" />
-              <col className="w-14" />
-            </>
-          ) : null}
+          <col style={{ width: metaColWidth }} />
           <col />
           <col className="w-[12rem]" />
           <col className="w-[6.5rem]" />
@@ -306,17 +335,11 @@ export function ProjectsBreakdownTable({
         </colgroup>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            {showHarness ? (
-              <>
-                <TableHead className={cn("w-10 px-2 text-center", HEAD)}>
-                  <span className="sr-only">Expand</span>
-                </TableHead>
-                <TableHead
-                  className={cn("w-[3.5rem] text-center", HEAD)}
-                  aria-label="Harness"
-                />
-              </>
-            ) : null}
+            <TableHead className={cn(metaColClass, HEAD, "align-top")} aria-label="Harness">
+              {showExpandCol ? (
+                <span className="sr-only">Expand</span>
+              ) : null}
+            </TableHead>
             <TableHead className={cn(PROJECT_HEAD, HEAD)}>Project</TableHead>
             <TableHead
               className={cn(RANGE_COL, HEAD, "whitespace-normal text-center")}
@@ -346,7 +369,12 @@ export function ProjectsBreakdownTable({
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
-            <ProjectRow key={row.rowKey} row={row} showHarness={showHarness} />
+            <ProjectRow
+              key={row.rowKey}
+              row={row}
+              showExpandCol={showExpandCol}
+              metaColClass={metaColClass}
+            />
           ))}
         </TableBody>
       </Table>

@@ -7,6 +7,7 @@
 | [claude-log-parsing.md](./claude-log-parsing.md) | How Claude Code JSONL is parsed |
 | [cursor-provider-usage-csv.md](./cursor-provider-usage-csv.md) | Billing CSV import, spend, leverage, export links |
 | [plan-pricing.md](./plan-pricing.md) | Subscription plan mapping and overrides |
+| [onboarding.md](./onboarding.md) | First-run setup wizard, detection, completion criteria |
 
 ## Key source files
 
@@ -27,6 +28,7 @@
 | Spend Logs filters | `src/components/filters.tsx`, `GET /api/raw-spend/projects`, `GET /api/raw-spend/models` |
 | Plan Leverage UI | `src/components/leverage/` (table, sparkline, summary share/export), `GET /api/leverage` |
 | Billing upload UI | `src/components/cursor/` |
+| Onboarding | `src/lib/onboarding/`, `src/app/setup/`, `GET /api/onboarding/status` |
 | Settings UI | `src/components/settings/settings-ui.tsx`, `src/components/settings/settings-detail-dialog.tsx`, `src/components/settings/settings-page-client.tsx` |
 | Data directory / env | `src/lib/claude/path.ts` (`AGENTIC_USAGE_DATA_DIR`) |
 | README screenshot tooling | `scripts/capture-readme-screenshots.sh`, `scripts/verify-no-leaks.mjs`, `src/lib/demo/` |

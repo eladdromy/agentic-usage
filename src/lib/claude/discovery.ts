@@ -1,7 +1,11 @@
 import fs from "fs";
 import path from "path";
 
-import { getClaudeGlobalConfigPath, getClaudeHome } from "./path";
+import {
+  getClaudeGlobalConfigPath,
+  getClaudeHome,
+  getResolvedClaudeHome,
+} from "./path";
 
 export type SyncFile = {
   fileKey: string;
@@ -75,8 +79,10 @@ function walkDir(
   }
 }
 
-export function discoverClaudeJsonlFiles(): SyncFile[] {
-  const claudeHome = getClaudeHome();
+export function discoverClaudeJsonlFiles(
+  claudeHomeOverride?: string | null,
+): SyncFile[] {
+  const claudeHome = getResolvedClaudeHome(claudeHomeOverride);
   const out: SyncFile[] = [];
 
   if (fs.existsSync(claudeHome)) {
@@ -87,8 +93,8 @@ export function discoverClaudeJsonlFiles(): SyncFile[] {
   return out;
 }
 
-export function claudeHomeExists(): boolean {
-  return fs.existsSync(getClaudeHome());
+export function claudeHomeExists(claudeHomeOverride?: string | null): boolean {
+  return fs.existsSync(getResolvedClaudeHome(claudeHomeOverride));
 }
 
 export function claudeConfigExists(): boolean {

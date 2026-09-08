@@ -42,6 +42,38 @@ flowchart LR
 
 `activeHarness` in `.data/settings.json` (`claude` | `cursor` | `all`). When unset, auto-defaults to Cursor if only vscdb exists, else Claude. Switch in the top navbar; **All harnesses** merges Claude and Cursor rows on Spend Logs.
 
+After onboarding, the navbar harness control is **dynamic**:
+
+| State | UI |
+|-------|-----|
+| Only Claude installed / detected | Static badge "Claude Code" |
+| Only Cursor with CSV imported | Static badge "Cursor" |
+| Both (Claude home + Cursor CSV) | Dropdown: All / Claude / Cursor |
+
+Availability after onboarding uses **install detection** (Claude home on disk, Cursor `state.vscdb`) so the All harnesses dropdown appears when both tools are present — even if only Claude has been set up. When Cursor is installed but billing CSV is not imported yet, a global setup banner appears at the top of every app screen (Plan Leverage, Projects, Spend Logs, Settings).
+
+## First-run onboarding
+
+New installs are gated at `/setup` until at least one harness has indexed/imported data **and** subscription details are approved. Detection uses fast filesystem checks only (no bubble reads). Existing installs with data in SQLite skip the wizard automatically.
+
+```mermaid
+flowchart TD
+  open[Open app] --> gate{Onboarding complete?}
+  gate -->|no| setup["/setup wizard"]
+  gate -->|yes| app["/leverage and analytics"]
+  setup --> detect[Detect Claude + Cursor paths]
+  detect --> branch{Flow}
+  branch --> claude[Claude: sync → subscription]
+  branch --> cursor[Cursor: CSV → project sync → subscription]
+  branch --> both[Both: Claude first, optional Cursor]
+  branch --> none[None: manual paths]
+  claude --> app
+  cursor --> app
+  both --> app
+```
+
+Details: [onboarding.md](./onboarding.md).
+
 ## Sync
 
 - **Claude** — JSONL mtime watermark; one row per assistant message with `message.usage`. Triggered on navigation and manual Re-index.
@@ -54,15 +86,17 @@ flowchart LR
 | `/api/raw-spend` | GET | Paginated spend rows (harness-aware) |
 | `/api/projects-breakdown` | GET | Per-project all-time API eq + subscription spend (allocated by monthly API-eq share), first→last billed request range; merges same workspace across harnesses |
 | `/api/leverage` | GET | Yearly/monthly leverage table rows + sparklines; supports **all harnesses** with expandable per-harness breakdown |
-| `/api/profile` | GET | Paths, counts, harness, plan |
-| `/api/settings` | GET/PUT | Plan overrides, harness, sync settings |
+| `/api/profile` | GET | Paths, counts, harness, plan, harness availability |
+| `/api/onboarding/status` | GET | Harness detection, readiness, suggested setup flow |
+| `/api/onboarding/complete` | POST | Mark onboarding done and set `activeHarness` |
+| `/api/settings` | GET/PUT | Plan overrides, harness, sync settings, onboarding flags |
 | `/api/settings/plan-months` | GET | Months with usage + tier presets for subscription UI |
 | `/api/sync` | POST | Re-index Claude JSONL (no-op for Cursor) |
 | `/api/cursor/provider-usage/upload` | POST | Import billing CSV + project attach |
 | `/api/cursor/attach-projects` | POST | Re-run project attach on stored CSV rows |
 | `/api/cursor/billing-coverage` | GET | CSV date range, export links, unmatched preview |
 
-Default route: `/` → `/leverage` (Plan Leverage).
+Default route: `/` → `/leverage` (Plan Leverage). Incomplete onboarding redirects to `/setup`.
 
 ## Security
 
