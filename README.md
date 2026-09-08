@@ -5,7 +5,7 @@
   </span>
 </h1>
 
-**Local observability for your coding agent harnesses.** See spend, subscription leverage, and project breakdown — in one dashboard on your machine.
+**Local observability for your coding agent harnesses.** Plan leverage, project breakdown, and spend logs — in one dashboard on your machine.
 
 License: PolyForm Noncommercial · Local-only · No telemetry
 
@@ -13,7 +13,7 @@ License: PolyForm Noncommercial · Local-only · No telemetry
 
 ## The 30-second version
 
-Agentic Usage is a **local dashboard** that reads usage data from the coding agent tools you already run. It indexes session logs, imports billing exports where needed, and shows you **where the money went** — per request, per project, and per subscription month.
+Agentic Usage is a **local dashboard** that reads usage data from the coding agent tools you already run. It indexes session logs, imports billing exports where needed, and shows you **where the money went** — plan leverage by month, spend by project, and cost per request.
 
 Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 
@@ -23,10 +23,9 @@ Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 
 | View | What it shows |
 |------|----------------|
-| **Spend Logs** | Per-request token spend with filters by project, model, and date |
 | **Plan Leverage** | Monthly API-equivalent spend ÷ subscription price — are you getting your plan's worth? |
 | **Projects** | All-time spend allocated by project/workspace across harnesses |
-| **Settings** | Harness switch, plan overrides, billing CSV import & coverage, log re-index |
+| **Spend Logs** | Per-request token spend with filters by project, model, and date |
 
 **Works today**
 
