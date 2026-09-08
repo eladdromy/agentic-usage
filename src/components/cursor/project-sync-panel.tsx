@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CircleCheck,
   CircleX,
@@ -9,12 +9,21 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Surface } from "@/components/ui/surface";
+import {
+  SettingsDetailDialog,
+  SettingsDialogAlert,
+  SettingsDialogRow,
+  SettingsDialogRowList,
+  SettingsDialogScrollBody,
+  SettingsDialogSection,
+  SettingsDialogStatStrip,
+} from "@/components/settings/settings-detail-dialog";
+import { SettingsStatusButton } from "@/components/settings/settings-ui";
 import {
   fetchProjectSyncMonths,
   idleProjectSyncMonths,
-  runProjectSyncByMonth,
 } from "@/lib/cursor/project-sync-client";
+import { summarizeProjectSyncButton } from "@/lib/cursor/project-sync-summary";
 import type { ProjectSyncMonthState } from "@/lib/cursor/project-sync-types";
 
 function StatusBadge({ month }: { month: ProjectSyncMonthState }) {
@@ -88,22 +97,88 @@ function monthDetail(month: ProjectSyncMonthState): string | null {
   return `${month.totalRows.toLocaleString()} rows synced`;
 }
 
-export function ProjectSyncPanel({
-  syncKey = 0,
-  retryUnmatched = false,
-  onComplete,
-  onSyncingChange,
+function projectSyncStatStrip(months: ProjectSyncMonthState[]): string {
+  const monthsBehind = months.filter((month) => month.pendingRows > 0).length;
+  const failed = months.filter((month) => month.status === "error").length;
+  const totalRows = months.reduce((sum, month) => sum + month.totalRows, 0);
+
+  const parts = [
+    months.length === 1 ? "1 billing month" : `${months.length} billing months`,
+    `${totalRows.toLocaleString()} rows`,
+  ];
+
+  if (failed > 0) {
+    parts.push(failed === 1 ? "1 failed" : `${failed} failed`);
+  } else if (monthsBehind > 0) {
+    parts.push(
+      monthsBehind === 1 ? "1 behind billing" : `${monthsBehind} behind billing`,
+    );
+  } else {
+    parts.push("synced with billing");
+  }
+
+  return parts.join(" · ");
+}
+
+function ProjectSyncDetails({
+  months,
+  syncing,
+  vscdbAvailable,
 }: {
-  /** Increment to start a month-by-month project sync run. */
-  syncKey?: number;
-  /** Re-attempt rows that previously failed to match. */
-  retryUnmatched?: boolean;
-  onComplete?: () => void;
-  onSyncingChange?: (syncing: boolean) => void;
+  months: ProjectSyncMonthState[];
+  syncing: boolean;
+  vscdbAvailable: boolean;
 }) {
+  return (
+    <>
+      <SettingsDialogStatStrip>{projectSyncStatStrip(months)}</SettingsDialogStatStrip>
+
+      {!vscdbAvailable ? (
+        <SettingsDialogAlert>
+          Cursor state.vscdb not found — project matching will fail until it is
+          available.
+        </SettingsDialogAlert>
+      ) : null}
+
+      <SettingsDialogSection
+        title="By month"
+        description="Each billing month is matched to local Cursor composers and workspace paths. Unmatched rows are tracked separately."
+      >
+        <SettingsDialogRowList>
+          {months.map((month) => {
+            const detail = monthDetail(month);
+            return (
+              <SettingsDialogRow
+                key={month.month}
+                title={month.label}
+                detail={detail}
+                action={<StatusBadge month={month} />}
+              />
+            );
+          })}
+        </SettingsDialogRowList>
+
+        {syncing ? (
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            Syncing projects…
+          </p>
+        ) : null}
+      </SettingsDialogSection>
+    </>
+  );
+}
+
+export function ProjectSyncPanel({
+  refreshKey = 0,
+  syncing = false,
+}: {
+  /** Increment to reload month status from the server. */
+  refreshKey?: number;
+  syncing?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
   const [months, setMonths] = useState<ProjectSyncMonthState[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [vscdbAvailable, setVscdbAvailable] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -125,114 +200,47 @@ export function ProjectSyncPanel({
     return () => {
       cancelled = true;
     };
-  }, [refresh]);
+  }, [refresh, refreshKey]);
 
-  useEffect(() => {
-    if (syncKey === 0) return;
+  const summary = useMemo(
+    () => summarizeProjectSyncButton(months, { syncing, loading }),
+    [months, syncing, loading],
+  );
 
-    let cancelled = false;
-
-    async function run() {
-      setSyncing(true);
-      onSyncingChange?.(true);
-      try {
-        const payload = await fetchProjectSyncMonths();
-        if (cancelled) return;
-
-        setVscdbAvailable(payload.vscdbAvailable);
-        setMonths(
-          payload.months.map((info) => ({
-            ...info,
-            status:
-              info.pendingRows === 0 &&
-              !(retryUnmatched && info.unmatchedRows > 0)
-                ? ("skipped" as const)
-                : ("pending" as const),
-          })),
-        );
-
-        await runProjectSyncByMonth({
-          retryUnmatched,
-          onMonthChange: (month, state) => {
-            if (cancelled) return;
-            setMonths((prev) =>
-              prev.map((row) => (row.month === month ? state : row)),
-            );
-          },
-        });
-
-        if (!cancelled) {
-          await refresh();
-          onComplete?.();
-        }
-      } finally {
-        if (!cancelled) {
-          setSyncing(false);
-          onSyncingChange?.(false);
-        }
-      }
-    }
-
-    void run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [syncKey, retryUnmatched, onComplete, onSyncingChange, refresh]);
-
-  if (loading && months.length === 0) {
-    return (
-      <Surface className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-        <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-        Loading project sync status…
-      </Surface>
-    );
-  }
-
-  if (months.length === 0) return null;
+  if (!loading && months.length === 0) return null;
 
   return (
-    <Surface className="space-y-3 p-4">
-      <div className="space-y-1">
-        <p className="text-sm font-medium">Project sync</p>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Matches billing rows to local Cursor composers and workspace paths,
-          month by month. Unmatched rows couldn&apos;t be linked to a local
-          project — not the same as still syncing.
-        </p>
-        {!vscdbAvailable ? (
-          <p className="text-sm text-amber-600 dark:text-amber-400">
-            Cursor state.vscdb not found — project matching will fail until it is
-            available.
-          </p>
-        ) : null}
-      </div>
+    <>
+      <SettingsStatusButton
+        icon={CircleCheck}
+        title="Project sync"
+        description={summary}
+        loading={loading || syncing}
+        disabled={loading && months.length === 0}
+        onClick={() => setOpen(true)}
+      />
 
-      <ul className="space-y-2">
-        {months.map((month) => {
-          const detail = monthDetail(month);
-          return (
-            <li
-              key={month.month}
-              className="flex flex-col gap-2 rounded-lg border border-border/60 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-medium">{month.label}</p>
-                {detail ? (
-                  <p className="text-xs text-muted-foreground">{detail}</p>
-                ) : null}
-              </div>
-              <StatusBadge month={month} />
-            </li>
-          );
-        })}
-      </ul>
-
-      {syncing ? (
-        <p className="text-xs text-muted-foreground" aria-live="polite">
-          Syncing projects…
-        </p>
-      ) : null}
-    </Surface>
+      <SettingsDetailDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Project sync"
+        description="Matches uploaded billing rows to local Cursor workspace paths, month by month."
+      >
+        {loading && months.length === 0 ? (
+          <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+            <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+            Loading project sync status…
+          </div>
+        ) : (
+          <SettingsDialogScrollBody>
+            <ProjectSyncDetails
+              months={months}
+              syncing={syncing}
+              vscdbAvailable={vscdbAvailable}
+            />
+          </SettingsDialogScrollBody>
+        )}
+      </SettingsDetailDialog>
+    </>
   );
 }

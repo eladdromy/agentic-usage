@@ -84,12 +84,10 @@ function SpendCell({
   title,
   spendLabel,
   spendMonths,
-  showHarnessInTooltip,
 }: {
   title: string;
   spendLabel: string;
   spendMonths: ProjectSpendMonthLine[];
-  showHarnessInTooltip: boolean;
 }) {
   if (spendLabel === "—" || spendMonths.length === 0) {
     return <>{spendLabel}</>;
@@ -111,7 +109,6 @@ function SpendCell({
         <ProjectSpendBreakdownTooltip
           title={title}
           lines={spendMonths}
-          showHarness={showHarnessInTooltip}
         />
       </TooltipContent>
     </Tooltip>
@@ -139,8 +136,6 @@ function DataRow({
   const spendTooltipTitle = isSubRow
     ? `${row.label} · ${harnessBreakdownRow.harnessLabel}`
     : row.label;
-  const showHarnessInTooltip =
-    showHarness && !isSubRow && row.harnesses.length > 1;
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (!expandable || !onToggle) return;
@@ -212,7 +207,6 @@ function DataRow({
           title={spendTooltipTitle}
           spendLabel={spendLabel}
           spendMonths={spendMonths}
-          showHarnessInTooltip={showHarnessInTooltip}
         />
       </TableCell>
       <TableCell className={NUMERIC}>

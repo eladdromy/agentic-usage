@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   attachProjectsToBillingEvents,
   buildProjectSyncMonthsPayload,
+  dayUtcSecBounds,
 } from "@/lib/cursor/billing-project-attach";
 
 export const runtime = "nodejs";
@@ -21,8 +22,23 @@ export async function GET() {
 /** Match billing rows to local vscdb projects for one month or all months. */
 export async function POST(request: Request) {
   try {
-    const month = new URL(request.url).searchParams.get("month")?.trim() || undefined;
-    const result = attachProjectsToBillingEvents(month ? { month } : undefined);
+    const url = new URL(request.url);
+    const month = url.searchParams.get("month")?.trim() || undefined;
+    const fromDay = url.searchParams.get("from")?.trim() || undefined;
+    const toDay = url.searchParams.get("to")?.trim() || undefined;
+    const pendingOnly = url.searchParams.get("pendingOnly") === "1";
+    const fastPath = url.searchParams.get("fastPath") !== "0";
+
+    const dayBounds =
+      fromDay && toDay ? dayUtcSecBounds(fromDay, toDay) : null;
+
+    const result = await attachProjectsToBillingEvents({
+      month,
+      fromSec: dayBounds?.fromSec,
+      toSec: dayBounds?.toSec,
+      pendingOnly,
+      fastPath,
+    });
     return NextResponse.json(result);
   } catch (err) {
     const message =

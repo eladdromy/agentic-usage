@@ -110,11 +110,16 @@ export function PlanLeveragePageClient() {
         eyebrow="Analytics"
         title="Plan Leverage"
         description={
-          harness === "all"
-            ? "Monthly API-equivalent spend divided by combined plan spend. Expand a row to see per-harness breakdown."
-            : harness === "cursor"
-              ? "Monthly API-equivalent spend divided by your Cursor plan plus any on-demand billing from CSV."
-              : "Monthly API-equivalent spend divided by your plan plus any on-demand billing."
+          harness === "all" ? (
+            <>
+              How much usage value you get for what you pay — leverage from subsidized
+              subscription usage.
+              <br />
+              Expand a month to see per-harness breakdown.
+            </>
+          ) : (
+            "How much usage value you get for what you pay — leverage from subsidized subscription usage."
+          )
         }
       />
 

@@ -16,7 +16,14 @@ export default function ProjectsBreakdownPage() {
         <div className="page-stack">
           <PageHeader
             title="Projects breakdown"
-            description="All-time spend and API-equivalent cost by project."
+            description={
+              <>
+                All-time spend and API-equivalent cost by project.
+                <br />
+                Same workspace in multiple harnesses is combined; expand a row to see
+                per-harness breakdown.
+              </>
+            }
           />
           <ProjectsBreakdownPageContentSkeleton />
         </div>

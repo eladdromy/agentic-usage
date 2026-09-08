@@ -92,9 +92,14 @@ export function ProjectsBreakdownPageClient() {
   }, [data?.rows, search, sort]);
 
   const description =
-    activeHarness === "all"
-      ? "All-time spend and API-equivalent cost by project. Same workspace in Claude and Cursor is combined; expand a row to see per-harness breakdown. Spend is your subscription cost allocated by each project's share of monthly API eq."
-      : activeHarness === "cursor"
+    activeHarness === "all" ? (
+      <>
+        All-time spend and API-equivalent cost by project.
+        <br />
+        Same workspace in multiple harnesses is combined; expand a row to see
+        per-harness breakdown.
+      </>
+    ) : activeHarness === "cursor"
         ? "All-time API-equivalent spend summed by project from your uploaded Cursor usage-events CSV. Spend is your subscription cost allocated by each project's share of monthly API eq."
         : "All-time API-equivalent spend summed by project from Claude Code logs. Spend is your subscription cost allocated by each project's share of monthly API eq.";
 

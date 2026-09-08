@@ -11,8 +11,9 @@ export function getReadonlyCursorDatabase(dbPath: string): Database.Database {
   if (conn && connPath === dbPath) return conn;
 
   conn = new Database(dbPath, { readonly: true, fileMustExist: true });
-  conn.pragma("mmap_size = 268435456");
-  conn.pragma("cache_size = -64000");
+  conn.pragma("mmap_size = 1073741824");
+  conn.pragma("cache_size = -128000");
+  conn.pragma("temp_store = memory");
   connPath = dbPath;
 
   return conn;

@@ -249,10 +249,15 @@ function projectPathFromComposerDataRaw(raw: string): string | null {
 }
 
 /** Composer id → absolute project folder path (headers + workspace composerData). */
-export function loadComposerProjectMap(dbPath: string): Map<string, string> {
+export function loadComposerProjectMap(
+  dbPath: string,
+  options?: { scanWorkspaces?: boolean },
+): Map<string, string> {
   const out = new Map<string, string>();
   if (!cursorVscdbExists(dbPath)) {
-    loadFromWorkspaceComposerData(out);
+    if (options?.scanWorkspaces !== false) {
+      loadFromWorkspaceComposerData(out);
+    }
     return out;
   }
 
@@ -260,7 +265,9 @@ export function loadComposerProjectMap(dbPath: string): Map<string, string> {
     const db = getReadonlyCursorDatabase(dbPath);
     loadFromItemTableHeadersBlob(db, out);
     loadFromComposerHeadersTable(db, out);
-    loadFromWorkspaceComposerData(out);
+    if (options?.scanWorkspaces !== false) {
+      loadFromWorkspaceComposerData(out);
+    }
   } catch {
     return out;
   }

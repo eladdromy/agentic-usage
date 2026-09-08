@@ -58,6 +58,10 @@ export type BillingCoveragePayload = {
     importedAt: string;
     rowsInserted: number;
     rowsSkipped: number;
+    /** First calendar day in the uploaded CSV file */
+    dateFrom: string | null;
+    /** Last calendar day in the uploaded CSV file */
+    dateTo: string | null;
   }[];
   projectAttribution: {
     vscdbAvailable: boolean;
@@ -84,8 +88,58 @@ function utcToday(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+export function utcTodayString(): string {
+  return utcToday();
+}
+
+export function daysBetweenUtcDays(fromDay: string, toDay: string): number {
+  const fromMs = Date.parse(`${fromDay}T00:00:00.000Z`);
+  const toMs = Date.parse(`${toDay}T00:00:00.000Z`);
+  return Math.round((toMs - fromMs) / 86_400_000);
+}
+
+/** e.g. "today", "yesterday", "5 days ago" — compares calendar UTC days. */
+export function formatRelativeUtcDay(
+  day: string,
+  today: string = utcToday(),
+): string {
+  const days = daysBetweenUtcDays(day, today);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  return `${days} days ago`;
+}
+
+/** First/last calendar day span recorded for one CSV upload. */
+export type BillingImportSpan = {
+  from: string;
+  to: string;
+};
+
+/** Short status line for the billing coverage settings button. */
+export function summarizeBillingCoverageButton(
+  coverage: BillingCoveragePayload,
+  today: string = utcToday(),
+): string {
+  const { missingRanges } = buildBillingCoverageFromImports(coverage.imports, today);
+
+  if (missingRanges.length === 0) return "up to date";
+
+  const missingDays = missingRanges.reduce(
+    (sum, range) => sum + daysBetweenUtcDays(range.from, range.to) + 1,
+    0,
+  );
+  return missingDays === 1 ? "1 missing day" : `${missingDays} missing days`;
+}
+
 function monthKey(day: string): string {
   return day.slice(0, 7);
+}
+
+/** Calendar months (YYYY-MM) touched by a day range, inclusive. */
+export function billingMonthsInDayRange(from: string, to: string): string[] {
+  const startMonth = monthKey(from);
+  const endMonth = monthKey(to);
+  return enumerateMonthsInclusive(startMonth, endMonth);
 }
 
 function lastDayOfUtcMonth(year: number, month1: number): number {
@@ -111,6 +165,66 @@ function formatMonthLabel(month: string): string {
 
 export { formatMonthLabel as formatBillingMonthLabel };
 
+function formatMonthShortLabel(month: string): string {
+  const year = Number(month.slice(0, 4));
+  const month0 = Number(month.slice(5, 7)) - 1;
+  return new Date(Date.UTC(year, month0, 1)).toLocaleDateString(undefined, {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function monthAfterKey(month: string): string {
+  let year = Number(month.slice(0, 4));
+  let month1 = Number(month.slice(5, 7));
+  month1 += 1;
+  if (month1 > 12) {
+    month1 = 1;
+    year += 1;
+  }
+  return `${year}-${String(month1).padStart(2, "0")}`;
+}
+
+function groupConsecutiveMonthKeys(
+  sortedMonths: string[],
+): Array<{ start: string; end: string }> {
+  if (sortedMonths.length === 0) return [];
+
+  const ranges: Array<{ start: string; end: string }> = [];
+  let start = sortedMonths[0]!;
+  let end = sortedMonths[0]!;
+
+  for (let i = 1; i < sortedMonths.length; i++) {
+    const month = sortedMonths[i]!;
+    if (month === monthAfterKey(end)) {
+      end = month;
+      continue;
+    }
+    ranges.push({ start, end });
+    start = month;
+    end = month;
+  }
+
+  ranges.push({ start, end });
+  return ranges;
+}
+
+/** e.g. `Nov 2025` or `Nov 2025 → Sep 2026` for consecutive calendar months. */
+export function formatBillingMonthSpanLabel(start: string, end: string): string {
+  const startLabel = formatMonthShortLabel(start);
+  if (start === end) return startLabel;
+  return `${startLabel} → ${formatMonthShortLabel(end)}`;
+}
+
+/** Collapse consecutive YYYY-MM keys into compact span lines for display. */
+export function formatBillingMonthSpanLines(months: string[]): string[] {
+  const sorted = [...months].sort();
+  return groupConsecutiveMonthKeys(sorted).map(({ start, end }) =>
+    formatBillingMonthSpanLabel(start, end),
+  );
+}
+
 function dayAfter(day: string): string {
   const d = new Date(`${day}T00:00:00.000Z`);
   d.setUTCDate(d.getUTCDate() + 1);
@@ -131,29 +245,61 @@ function toExportRange(from: string, to: string): BillingExportAll {
   };
 }
 
-/** Contiguous calendar-day spans present in uploaded CSV data. */
-export function buildUploadedDayRanges(days: string[]): BillingExportAll[] {
-  if (days.length === 0) return [];
+function mergeUploadedExportRanges(
+  ranges: BillingExportAll[],
+): BillingExportAll[] {
+  if (ranges.length === 0) return [];
 
-  const sorted = [...days].sort();
-  const ranges: BillingExportAll[] = [];
-  let start = sorted[0]!;
-  let prev = sorted[0]!;
+  const sorted = [...ranges].sort((a, b) => a.from.localeCompare(b.from));
+  const merged: BillingExportAll[] = [];
+  let current = sorted[0]!;
 
   for (let i = 1; i < sorted.length; i++) {
-    const day = sorted[i]!;
-    if (day !== dayAfter(prev)) {
-      ranges.push(toExportRange(start, prev));
-      start = day;
+    const next = sorted[i]!;
+    if (next.from <= dayAfter(current.to)) {
+      if (next.to > current.to) {
+        current = toExportRange(current.from, next.to);
+      }
+      continue;
     }
-    prev = day;
+    merged.push(current);
+    current = next;
   }
 
-  ranges.push(toExportRange(start, prev));
-  return ranges;
+  merged.push(current);
+  return merged;
 }
 
-/** Gaps between uploaded spans and from the last span through today. */
+export function billingImportRecordsToSpans(
+  imports: BillingCoveragePayload["imports"],
+): BillingImportSpan[] {
+  return imports.flatMap((record) => {
+    if (!record.dateFrom || !record.dateTo) return [];
+    return [{ from: record.dateFrom, to: record.dateTo }];
+  });
+}
+
+/** Merge per-CSV upload spans (overlap or touch) into uploaded coverage ranges. */
+export function buildUploadedRangesFromImportSpans(
+  spans: BillingImportSpan[],
+): BillingExportAll[] {
+  return mergeUploadedExportRanges(
+    spans.map((span) => toExportRange(span.from, span.to)),
+  );
+}
+
+export function buildBillingCoverageFromImports(
+  imports: BillingCoveragePayload["imports"],
+  today: string = utcToday(),
+): { uploadedRanges: BillingExportAll[]; missingRanges: BillingExportAll[] } {
+  const uploadedRanges = buildUploadedRangesFromImportSpans(
+    billingImportRecordsToSpans(imports),
+  );
+  const missingRanges = buildMissingDayRanges(uploadedRanges, today);
+  return { uploadedRanges, missingRanges };
+}
+
+/** Gaps between merged CSV upload spans and from the last span through today. */
 export function buildMissingDayRanges(
   uploadedRanges: BillingExportAll[],
   today: string = utcToday(),
@@ -179,7 +325,16 @@ export function buildMissingDayRanges(
 }
 
 export function formatBillingDayRange(from: string, to: string): string {
-  return from === to ? from : `${from} → ${to}`;
+  const formatDay = (day: string) => {
+    const d = new Date(`${day}T00:00:00.000Z`);
+    return d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  };
+  return from === to ? formatDay(from) : `${formatDay(from)} → ${formatDay(to)}`;
 }
 
 function enumerateMonthsInclusive(fromMonth: string, toMonth: string): string[] {
