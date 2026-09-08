@@ -90,7 +90,7 @@ After setup, Claude logs re-index on navigation; Cursor spend comes from uploade
 
 ## Screenshots
 
-![Plan Leverage dashboard — monthly API-equivalent spend vs subscription cost](./readme-assets/demo-hero.png)
+![Plan Leverage — 2026 year summary with leverage, exposure, and per-harness breakdown](./readme-assets/demo-hero.png)
 
 ### Plan Leverage
 
