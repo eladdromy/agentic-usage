@@ -6,6 +6,7 @@
 | [readme-screenshots.md](./readme-screenshots.md) | README demo PNG capture and anonymization |
 | [claude-log-parsing.md](./claude-log-parsing.md) | How Claude Code JSONL is parsed |
 | [cursor-provider-usage-csv.md](./cursor-provider-usage-csv.md) | Billing CSV import, spend, leverage, export links |
+| [cursor-project-sync-troubleshooting.md](./cursor-project-sync-troubleshooting.md) | Project sync failures, “thousands unmatched”, reset/re-match playbook |
 | [plan-pricing.md](./plan-pricing.md) | Subscription plan mapping and overrides |
 | [onboarding.md](./onboarding.md) | First-run setup wizard, detection, completion criteria |
 

@@ -1,5 +1,8 @@
 import { randomUUID } from "crypto";
 
+// Project sync prep + background job. Troubleshooting (mass no_local_prompts,
+// pending vs unmatched): docs/cursor-project-sync-troubleshooting.md
+
 import {
   attachProjectsToBillingEvents,
   buildProjectSyncMonthsPayload,
@@ -98,7 +101,12 @@ function resolveBubblePreloadBounds(
   targetMonths: string[],
   pendingOnly: boolean,
 ): { fromSec: number; toSec: number } | null {
-  if (uploadBounds) return uploadBounds;
+  if (uploadBounds) {
+    return {
+      fromSec: uploadBounds.fromSec - 60,
+      toSec: uploadBounds.toSec + 60,
+    };
+  }
 
   const rowBounds = queryProjectAttachRowBounds({
     months: targetMonths,
@@ -183,29 +191,33 @@ async function executeProjectSyncJob(
           { fastPath: !retryUnmatched },
         );
 
-        if (retryUnmatched) {
-          await yieldEventLoop();
-          taskV2Dispatches = await loadTaskV2DispatchBubblesAsync(vscdbPath, {
-            fromSec: bubbleBounds.fromSec,
-            toSec: bubbleBounds.toSec,
-          });
-          await yieldEventLoop();
-          const db = getReadonlyCursorDatabase(vscdbPath);
-          subagentParentProjects = await buildSubagentParentProjectIndexAsync(
-            taskV2Dispatches,
-            (parentComposerId) =>
-              resolveComposerProjectPath(
-                db,
-                parentComposerId,
-                composerProjects!,
-                new Map(),
-              ),
+        if (preloadedBubbles.length > 0) {
+          // Only pass shared context when bubbles loaded — empty prep must not
+          // flow through as null (mass no_local_prompts). See docs/cursor-project-sync-troubleshooting.md
+          if (retryUnmatched) {
+            await yieldEventLoop();
+            taskV2Dispatches = await loadTaskV2DispatchBubblesAsync(vscdbPath, {
+              fromSec: bubbleBounds.fromSec,
+              toSec: bubbleBounds.toSec,
+            });
+            await yieldEventLoop();
+            const db = getReadonlyCursorDatabase(vscdbPath);
+            subagentParentProjects = await buildSubagentParentProjectIndexAsync(
+              taskV2Dispatches,
+              (parentComposerId) =>
+                resolveComposerProjectPath(
+                  db,
+                  parentComposerId,
+                  composerProjects!,
+                  new Map(),
+                ),
+            );
+          }
+
+          billingAttributionContext = await createBillingAttributionContextAsync(
+            preloadedBubbles,
           );
         }
-
-        billingAttributionContext = await createBillingAttributionContextAsync(
-          preloadedBubbles,
-        );
       }
 
       await yieldEventLoop();
@@ -246,8 +258,10 @@ async function executeProjectSyncJob(
           fastPath: !retryUnmatched,
           composerProjects,
           taskV2Dispatches,
-          preloadedBubbles,
-          billingAttributionContext,
+          ...(preloadedBubbles !== undefined ? { preloadedBubbles } : {}),
+          ...(billingAttributionContext !== undefined
+            ? { billingAttributionContext }
+            : {}),
           subagentParentProjects,
           onProgress: (progress) => {
             job.months[index] = {

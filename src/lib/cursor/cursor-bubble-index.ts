@@ -50,6 +50,17 @@ function bubbleTypeFromRaw(raw: string): 1 | 2 | null {
 }
 
 function getIndexDatabase(): DatabaseConstructor.Database {
+  // Drop stale handle when index file was deleted (e.g. reset:cursor without
+  // server restart). See docs/cursor-project-sync-troubleshooting.md
+  if (indexConn && !fs.existsSync(INDEX_DB_PATH)) {
+    try {
+      indexConn.close();
+    } catch {
+      // ignore close errors on stale handle
+    }
+    indexConn = null;
+  }
+
   if (indexConn) return indexConn;
   fs.mkdirSync(getDataDir(), { recursive: true });
   indexConn = new DatabaseConstructor(INDEX_DB_PATH);

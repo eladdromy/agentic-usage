@@ -40,8 +40,8 @@ Suggested flow: `both` | `claude` | `cursor` | `none`.
 | `/setup/claude/sync` | Auto full JSONL index |
 | `/setup/claude/subscription` | Per-month plan review + approve |
 | `/setup/cursor/offer` | Both-flow: set up Cursor or skip |
-| `/setup/cursor/upload` | Billing CSV upload |
-| `/setup/cursor/sync` | Project attach (scoped bubble reads) |
+| `/setup/cursor/upload` | Billing CSV upload (**does not** start project sync) |
+| `/setup/cursor/sync` | Project attach — **required** after upload; auto-starts background sync |
 | `/setup/cursor/subscription` | Per-month plan review + approve |
 | `/setup/complete` | Finalize settings → redirect `/leverage` |
 
@@ -79,3 +79,9 @@ onboardingDeferredCursor: boolean;
 | Shared CSV upload | `src/components/cursor/cursor-csv-upload-panel.tsx` |
 | Dynamic harness badge | `src/components/layout/harness-select.tsx` |
 | Cursor setup banner (global) | `src/components/cursor/cursor-setup-banner-gate.tsx`, `src/components/cursor/cursor-deferred-banner.tsx` |
+
+## Cursor project sync pitfalls
+
+Onboarding **upload** and **sync** are separate steps. Until `/setup/cursor/sync` finishes, all billing rows are **pending** (not unmatched) — Settings may show thousands “need matching.” That is expected.
+
+After `npm run reset:cursor`, **restart the dev server** before re-uploading; otherwise bubble prep can fail and mark every row `no_local_prompts`. Full playbook: [cursor-project-sync-troubleshooting.md](./cursor-project-sync-troubleshooting.md).
