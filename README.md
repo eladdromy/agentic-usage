@@ -2,8 +2,6 @@
 
 **Local observability for your coding agent harnesses.** See spend, subscription leverage, and project breakdown — in one dashboard on your machine.
 
-![Plan Leverage dashboard — monthly API-equivalent spend vs subscription cost](./readme-assets/demo-hero.png)
-
 License: PolyForm Noncommercial · Local-only · No telemetry
 
 ---
@@ -35,28 +33,6 @@ Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 
 - Codex and additional harness adapters
 - One-line install (`curl … \| bash`) — dev install below for now
-
----
-
-## Screenshots
-
-### Plan Leverage
-
-Monthly API-equivalent spend divided by subscription cost — with year summaries, per-harness breakdown, and shareable snapshots.
-
-![Plan Leverage — year summary, harness table, and monthly breakdown](./readme-assets/demo-plan-leverage.png)
-
-### Spend Logs
-
-Per-request token spend with filters by project, model, and date range.
-
-![Spend Logs — filtered request table with token and API-equivalent columns](./readme-assets/demo-spend-logs.png)
-
-### Projects
-
-All-time spend allocated by project/workspace, with per-harness drill-down.
-
-![Projects breakdown — spend and API-equivalent cost by project](./readme-assets/demo-projects.png)
 
 ---
 
@@ -99,6 +75,30 @@ npm start
 The wizard blocks analytics pages until at least one harness is fully configured. See [docs/onboarding.md](./docs/onboarding.md) for step details.
 
 After setup, Claude logs re-index on navigation; Cursor spend comes from uploaded billing CSV.
+
+---
+
+## Screenshots
+
+![Plan Leverage dashboard — monthly API-equivalent spend vs subscription cost](./readme-assets/demo-hero.png)
+
+### Plan Leverage
+
+Monthly API-equivalent spend divided by subscription cost — with year summaries, per-harness breakdown, and shareable snapshots.
+
+![Plan Leverage — year summary, harness table, and monthly breakdown](./readme-assets/demo-plan-leverage.png)
+
+### Spend Logs
+
+Per-request token spend with filters by project, model, and date range.
+
+![Spend Logs — filtered request table with token and API-equivalent columns](./readme-assets/demo-spend-logs.png)
+
+### Projects
+
+All-time spend allocated by project/workspace, with per-harness drill-down.
+
+![Projects breakdown — spend and API-equivalent cost by project](./readme-assets/demo-projects.png)
 
 ---
 
