@@ -1,8 +1,7 @@
-<p align="center">
-  <img src="readme-assets/icon.png" width="96" alt="Agentic Usage icon" />
-</p>
-
-# Agentic Usage
+<h1 align="center">
+  <img src="readme-assets/icon.png" width="40" alt="" style="vertical-align: middle; border-radius: 8px; margin-right: 0.35em;" />
+  Agentic Usage
+</h1>
 
 **Local observability for your coding agent harnesses.** See spend, subscription leverage, and project breakdown — in one dashboard on your machine.
 
@@ -25,17 +24,21 @@ Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 | **Spend Logs** | Per-request token spend with filters by project, model, and date |
 | **Plan Leverage** | Monthly API-equivalent spend ÷ subscription price — are you getting your plan's worth? |
 | **Projects** | All-time spend allocated by project/workspace across harnesses |
-| **Settings** | Harness switch, plan overrides, billing CSV import, log re-index |
+| **Settings** | Harness switch, plan overrides, billing CSV import & coverage, log re-index |
 
 **Works today**
 
-- Multiple coding agent harnesses in one app — switch in the navbar or merge into a combined view
+- **Claude Code** and **Cursor** in one app — merge into a combined view or switch per harness in the navbar
+- First-run **setup wizard** with harness auto-detection, guided data import, and subscription approval
+- Cursor **export shortcuts** during setup — suggested billing date range from local composer activity, plus one-click **Download usage** / **Open dashboard** links
+- Cursor **project sync** links billing CSV rows to local workspace paths (`state.vscdb` bubble scan in the CSV date range)
 - Automatic subscription plan detection where the harness exposes it
+- Dynamic navbar harness control — static badge when one harness is present, or **All / Claude / Cursor** dropdown when both are installed
 - Sparklines, year summaries, and downloadable leverage snapshots
 
 **On the roadmap**
 
-- Codex and additional harness adapters
+- Codex CLI, Grok Build, and additional harness adapters (see [future harness research](./docs/future-harnesses-codex-grok.md))
 - One-line install (`curl … \| bash`) — dev install below for now
 
 ---
@@ -74,11 +77,14 @@ npm start
 
 1. Start the dev server (above).
 2. Open [http://localhost:3000](http://localhost:3000) — the **setup wizard** runs automatically on first launch.
-3. Follow the guided steps: harness detection, log indexing or CSV import, project sync (Cursor), and subscription approval.
+3. Follow the guided steps:
+   - **Claude** — auto index JSONL logs → review subscription plan
+   - **Cursor** — export billing CSV (wizard suggests dates from local activity) → upload → **project sync** (blocking modal until rows are linked to workspaces) → review subscription plan
+   - **Both** — Claude first, then optional Cursor (skip Cursor and finish later from the analytics banner → Settings)
 
-The wizard blocks analytics pages until at least one harness is fully configured. See [docs/onboarding.md](./docs/onboarding.md) for step details.
+The wizard blocks analytics pages until at least one harness is fully configured. Existing installs with indexed data skip the wizard automatically. See [docs/onboarding.md](./docs/onboarding.md) for step details.
 
-After setup, Claude logs re-index on navigation; Cursor spend comes from uploaded billing CSV.
+After setup, Claude logs re-index on navigation; Cursor spend comes from uploaded billing CSV with project paths attached during sync. If Cursor is installed but CSV is not imported yet, a banner on every analytics page links to finish setup.
 
 ---
 
@@ -159,12 +165,25 @@ Detailed architecture, CSV import, log parsing, and plan pricing: [docs/README.m
 
 ---
 
+## Dev utilities
+
+| Command | Purpose |
+|---------|---------|
+| `npm run reset:cursor` | Wipe Cursor billing DB, bubble index, and Cursor onboarding flags (restart dev server after) |
+| `npm run reset:claude` | Wipe Claude usage index and Claude onboarding flags |
+
+See [cursor-project-sync-troubleshooting.md](./docs/cursor-project-sync-troubleshooting.md) if project sync shows thousands of pending rows or mass match failures.
+
+---
+
 ## Roadmap
 
-- [ ] Codex harness adapter
+- [ ] Codex CLI harness adapter
+- [ ] Grok Build harness adapter
 - [ ] One-line installer script
 - [x] README screenshots and demo assets
-- [ ] Additional harnesses as their local data formats stabilize
+- [x] First-run onboarding wizard
+- [x] Cursor export shortcuts and project sync UX
 
 Issues and PRs welcome once the repo is public.
 
