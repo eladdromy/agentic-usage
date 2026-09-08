@@ -66,7 +66,9 @@ Progress phases (poll `GET /api/cursor/attach-projects/sync`):
 
 During `preparing`, the UI shows prep steps only (not billing months). Prompt loading for the billing date window runs in `loading_prompts`, then the match index is built from those bubbles before the month list appears. During `syncing`, months stay **Up next** until row matching begins; the counter then ticks `1/N`, `2/N`, … per row. **Done** (enabled only when finished) dismisses the modal.
 
-After CSV upload, only billing months touched by the uploaded file’s date span are synced — e.g. a CSV covering 2026-09-08 syncs September only.
+After CSV upload, only billing months touched by the uploaded file’s date span are synced — e.g. a CSV covering 2026-09-08 syncs September only. Within that span, only months with **pending** rows (or **unmatched** rows when `retryUnmatched: true`) are included in the sync job — already-synced months are not listed.
+
+If front-loaded bubble prep finds **no prompts in range** (stale sidecar index after `reset:cursor` without restarting the dev server, empty index, etc.), per-month attach **falls back** to loading bubbles for that batch instead of marking every row `no_local_prompts`.
 
 Sync uses `POST /api/cursor/attach-projects/sync` (returns **202 immediately**) and polls `GET /api/cursor/attach-projects/sync` every 750ms. `GET` returns the **latest job regardless of status** (running _or_ finished), retained until the next sync replaces it, and `{ status: "idle" }` only when no sync has ever run. Retention matters because re-matching known-fail rows can finish in well under one poll interval (e.g. ~160ms for 123 rows) — if the completed job were dropped, the poller would never observe the final per-month result and would hang on stale "Up next" progress. The client stops polling as soon as it reads a non-`running` job (authoritative final matched/unmatched counts) or finds its job superseded.
 
@@ -95,6 +97,17 @@ The expensive work is **global and one-time**, so `preparing` does it once and e
 `attachProjectsToBillingEvents` skips its own bubble load / context build whenever these are supplied (`billing-project-attach.ts`, `hasPreparedAttribution`). Per-row matching is an O(log n) binary search (`mostRecentUPWinner` / `tightBubbleWinner`), so ~123 rows resolve in ~150ms. Slicing this per month would only re-scan overlapping data and be slower — it is intentionally front-loaded into prep.
 
 **Re-match specifics** (`retryUnmatched: true`): `pendingOnly: false` (retries prior failures), `fastPath: false` (fuller matching incl. subagent roll-up), month scope = months with pending **or** unmatched rows. Rows that fail again with the **same** `project_unmatch_reason` skip redundant DB writes (`unchangedRetryFailure`).
+
+### Troubleshooting project sync
+
+See **[cursor-project-sync-troubleshooting.md](./cursor-project-sync-troubleshooting.md)** for:
+
+- **Pending vs unmatched vs matched** — why “10,924 rows” is not “10,924 unmatched”
+- **Onboarding upload ≠ sync** — pending thousands before `/setup/cursor/sync` completes
+- **Mass `no_local_prompts`** after `reset:cursor` without restarting the dev server (regression + fixes)
+- **SQL diagnostics** and recovery steps
+
+**Do not revert:** empty bubble prep must fall back to per-batch load; never pass `billingAttributionContext: null` as successful prep.
 
 ## Model pricing
 
@@ -157,3 +170,4 @@ Cursor plan tier auto-detection reads `state.vscdb` → `ItemTable` profile keys
 - `src/lib/cursor/project-attribution.ts` — composer → workspace path map
 - `src/lib/pricing/cursor-usage-cost.ts` — format/estimate row cost
 - `scripts/reset-cursor-data.sh` — wipe app billing DB + bubble index to replay the flow
+- [cursor-project-sync-troubleshooting.md](./cursor-project-sync-troubleshooting.md) — pending vs unmatched, mass failures, reset playbook

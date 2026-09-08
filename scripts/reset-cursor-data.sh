@@ -22,7 +22,8 @@
 #
 # Note: stop the dev server first (or restart it after) — a running server keeps
 # open handles to these SQLite files, so it would keep using the old data until
-# restarted.
+# restarted. Empty bubble prep after reset can mark all rows no_local_prompts.
+# Playbook: docs/cursor-project-sync-troubleshooting.md
 
 set -euo pipefail
 
@@ -57,4 +58,5 @@ else
   echo "Cursor billing data reset in: $data_dir"
   echo "Kept: agentic-usage.db, settings.json (and your real Cursor state.vscdb)."
   echo "Restart the dev server (npm run dev), then re-upload a usage-events CSV."
+  echo "If sync marks all rows no_local_prompts, see docs/cursor-project-sync-troubleshooting.md"
 fi

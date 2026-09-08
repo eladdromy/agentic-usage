@@ -50,8 +50,8 @@ export function resolveProjectSyncTargetMonths(
     months = availableMonths;
   }
 
-  // Re-match / Sync now (no upload date span): only months with rows to process.
-  if (!options.months?.length && !(options.dateFrom && options.dateTo)) {
+  // Unless an explicit month list was requested, only sync months with rows to process.
+  if (!options.months?.length) {
     months = months.filter((month) => {
       const info = monthInfos.find((row) => row.month === month);
       return info != null && monthNeedsProjectSync(info, options);

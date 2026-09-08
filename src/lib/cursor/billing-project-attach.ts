@@ -325,7 +325,27 @@ async function attachProjectsCore(
   let attributionCtx: BillingAttributionContext | null;
   if (hasPreparedAttribution) {
     attributionCtx = options!.billingAttributionContext ?? null;
-    await yieldEventLoop();
+    if (attributionCtx === null) {
+      // Prep found no bubbles (stale index after reset:cursor, etc.) — fall back
+      // to per-batch load; never mark every row no_local_prompts. See
+      // docs/cursor-project-sync-troubleshooting.md
+      const roughFrom = Math.floor(bubbleFromSec);
+      const roughTo = Math.ceil(bubbleToSec);
+      const bubbles =
+        options?.preloadedBubbles != null && options.preloadedBubbles.length > 0
+          ? await filterPreloadedBubblesAsync(
+              options.preloadedBubbles,
+              roughFrom,
+              roughTo,
+            )
+          : loadGlobalBubblesInRange(bubbleFromSec, bubbleToSec, vscdbPath, {
+              fastPath: fastBubblePath,
+            });
+      await yieldEventLoop();
+      attributionCtx = await createBillingAttributionContextAsync(bubbles);
+    } else {
+      await yieldEventLoop();
+    }
   } else {
     await yieldEventLoop();
 
