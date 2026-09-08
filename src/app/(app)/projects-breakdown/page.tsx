@@ -15,6 +15,7 @@ export default function ProjectsBreakdownPage() {
       fallback={
         <div className="page-stack">
           <PageHeader
+            eyebrow="Usage"
             title="Projects breakdown"
             description={
               <>

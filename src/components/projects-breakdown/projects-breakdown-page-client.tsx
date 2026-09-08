@@ -81,7 +81,6 @@ export function ProjectsBreakdownPageClient() {
     };
   }, [syncVersion, syncing, fetchData]);
 
-  const harness = data?.harness ?? activeHarness;
   const waitingForIndex =
     syncing && (activeHarness === "claude" || activeHarness === "all") && data == null;
   const isInitialLoad = data == null && (loading || waitingForIndex);
@@ -105,7 +104,7 @@ export function ProjectsBreakdownPageClient() {
 
   return (
     <div className="page-stack">
-      <PageHeader title="Projects breakdown" description={description} />
+      <PageHeader eyebrow="Usage" title="Projects breakdown" description={description} />
 
       {error ? (
         <p className="text-sm text-destructive" role="alert">
@@ -146,7 +145,6 @@ export function ProjectsBreakdownPageClient() {
           </div>
 
           <ProjectsBreakdownTable
-            harness={harness}
             rows={visibleRows}
             loading={loading}
             filtered={Boolean(search.trim())}

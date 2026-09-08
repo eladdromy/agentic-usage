@@ -15,7 +15,7 @@ export default function RawSpendPage() {
       fallback={
         <div className="page-stack">
           <PageHeader
-            eyebrow="Usage"
+            eyebrow="Audit"
             title="Spend Logs"
             description="Per-request token breakdown and API-equivalent cost."
           />

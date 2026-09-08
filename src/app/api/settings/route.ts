@@ -73,6 +73,36 @@ export async function PUT(request: Request) {
     activeHarness,
     syncDebounceMinutes,
     syncMethod,
+    onboardingCompletedAt:
+      body.onboardingCompletedAt === null
+        ? null
+        : typeof body.onboardingCompletedAt === "string"
+          ? body.onboardingCompletedAt
+          : current.onboardingCompletedAt,
+    onboardingClaudeSubscriptionApproved:
+      body.onboardingClaudeSubscriptionApproved === true
+        ? true
+        : body.onboardingClaudeSubscriptionApproved === false
+          ? false
+          : current.onboardingClaudeSubscriptionApproved,
+    onboardingCursorSubscriptionApproved:
+      body.onboardingCursorSubscriptionApproved === true
+        ? true
+        : body.onboardingCursorSubscriptionApproved === false
+          ? false
+          : current.onboardingCursorSubscriptionApproved,
+    onboardingCursorProjectSyncDone:
+      body.onboardingCursorProjectSyncDone === true
+        ? true
+        : body.onboardingCursorProjectSyncDone === false
+          ? false
+          : current.onboardingCursorProjectSyncDone,
+    onboardingDeferredCursor:
+      body.onboardingDeferredCursor === true
+        ? true
+        : body.onboardingDeferredCursor === false
+          ? false
+          : current.onboardingDeferredCursor,
   };
 
   writeSettings(next);

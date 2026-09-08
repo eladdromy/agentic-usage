@@ -93,11 +93,12 @@ npm start
 ## First run
 
 1. Start the dev server (above).
-2. Open **Settings** and confirm the active harness (or choose **All harnesses**).
-3. For harnesses that use billing CSV exports, upload your **usage-events** CSV from the provider billing dashboard.
-4. For harnesses that write session JSONL logs, click **Re-index** once — after that, indexing runs automatically on navigation.
+2. Open [http://localhost:3000](http://localhost:3000) — the **setup wizard** runs automatically on first launch.
+3. Follow the guided steps: harness detection, log indexing or CSV import, project sync (Cursor), and subscription approval.
 
-Spend Logs populate as data is indexed or imported. Plan Leverage and Projects fill in once there is spend to analyze.
+The wizard blocks analytics pages until at least one harness is fully configured. See [docs/onboarding.md](./docs/onboarding.md) for step details.
+
+After setup, Claude logs re-index on navigation; Cursor spend comes from uploaded billing CSV.
 
 ---
 
@@ -107,7 +108,8 @@ Spend Logs populate as data is indexed or imported. Plan Leverage and Projects f
 |----------|---------|---------|
 | `AGENTIC_USAGE_DATA_DIR` | `./.data` | SQLite index and app settings |
 | `AGENTIC_USAGE_ANONYMIZE` | off | Replace project **display** names/paths in API responses (for README screenshots). Filter values stay real so Spend Logs project filters still work. |
-| `CLAUDE_HOME` | `~/.claude` | Claude Code data directory |
+| `CLAUDE_CONFIG_DIR` | `~/.claude` | Claude Code config directory (official) |
+| `CLAUDE_HOME` | — | Legacy Claude config override; used only when `CLAUDE_CONFIG_DIR` is unset |
 | `VSCDB_PATH` | Cursor global `state.vscdb` | Override IDE state DB path |
 
 When `AGENTIC_USAGE_ANONYMIZE=1`, only labels shown in the UI are anonymized — not internal filter keys or database queries.

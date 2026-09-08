@@ -126,6 +126,7 @@ export function RouteSyncProvider({
 
   useEffect(() => {
     if (!isClient) return;
+    if (pathname.startsWith("/setup")) return;
     void runSync();
   }, [isClient, pathname, runSync]);
 

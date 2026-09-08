@@ -9,7 +9,7 @@ Claude Code writes JSONL under:
 ~/.claude/projects/<project-slug>/<session-id>/subagents/<name>.jsonl
 ```
 
-Override root with `CLAUDE_HOME`.
+Override root with `CLAUDE_CONFIG_DIR` (or legacy `CLAUDE_HOME`).
 
 ## Project slugs
 
@@ -51,8 +51,17 @@ Only lines matching:
 
 When `costUSD` is absent, calculated cost uses token buckets × model rates in `src/lib/pricing/model-pricing.ts` (ccusage-aligned formula).
 
+## Storage & reset
+
+| Property | Value |
+|----------|-------|
+| Storage | `.data/agentic-usage.db` (data dir honors `AGENTIC_USAGE_DATA_DIR`) |
+| Tables | `claude_usage_events`, `claude_usage_meta` (sync watermarks) |
+| Reset | `npm run reset:claude` (`scripts/reset-claude-data.sh`) deletes the indexed DB to replay the JSONL sync flow; keeps Cursor billing data, `settings.json`, and the real Claude JSONL logs under `~/.claude/projects/`. Restart the dev server after — it holds open SQLite handles. |
+
 ## Key modules
 
 - `src/lib/claude/discovery.ts` — find JSONL files
 - `src/lib/claude/usage-from-record.ts` — parse one line
 - `src/lib/db/usage-db.ts` — index + query
+- `scripts/reset-claude-data.sh` — wipe indexed Claude data to replay sync

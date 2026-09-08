@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import { CursorBillingBanner } from "@/components/cursor/cursor-billing-banner";
 import { PlanLeveragePageContentSkeleton } from "@/components/layout/page-loading-skeletons";
 import { useRouteSync } from "@/components/layout/route-sync";
 import {
@@ -16,7 +15,6 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { Surface } from "@/components/ui/surface";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { BillingCoveragePayload } from "@/lib/cursor/billing-coverage-shared";
 import {
   isReadmeYearSummaryScreenshot,
   readmeScreenshotYear,
@@ -34,10 +32,8 @@ export function PlanLeveragePageClient() {
     readmeScreenshotYear(searchParams, new Date().getUTCFullYear()),
   );
   const [data, setData] = useState<PlanLeverageYearPayload | null>(null);
-  const [coverage, setCoverage] = useState<BillingCoveragePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,18 +44,13 @@ export function PlanLeveragePageClient() {
       setLoading(true);
       setError(null);
       try {
-        const [leverageRes, coverageRes] = await Promise.all([
-          fetch(`/api/leverage?year=${encodeURIComponent(String(year))}`),
-          fetch("/api/cursor/billing-coverage"),
-        ]);
+        const leverageRes = await fetch(
+          `/api/leverage?year=${encodeURIComponent(String(year))}`,
+        );
         if (!leverageRes.ok) throw new Error("Failed to load plan leverage");
         const json = (await leverageRes.json()) as PlanLeverageYearPayload;
-        const coverageJson = coverageRes.ok
-          ? ((await coverageRes.json()) as BillingCoveragePayload)
-          : null;
         if (!cancelled) {
           setData(json);
-          setCoverage(coverageJson);
         }
       } catch (e) {
         if (!cancelled) {
@@ -75,7 +66,7 @@ export function PlanLeveragePageClient() {
     return () => {
       cancelled = true;
     };
-  }, [year, syncVersion, syncing, refreshKey]);
+  }, [year, syncVersion, syncing]);
 
   const waitingForIndex =
     isClient &&
@@ -122,16 +113,6 @@ export function PlanLeveragePageClient() {
           )
         }
       />
-
-      {harness === "cursor" || harness === "all" ? (
-        !isInitialLoad ? (
-          <CursorBillingBanner
-            coverage={coverage}
-            onUploaded={() => setRefreshKey((k) => k + 1)}
-            onSyncComplete={() => setRefreshKey((k) => k + 1)}
-          />
-        ) : null
-      ) : null}
 
       {!isInitialLoad && !data?.plan ? (
         <Surface className="border-dashed p-5 text-sm leading-relaxed">

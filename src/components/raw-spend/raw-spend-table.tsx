@@ -143,11 +143,13 @@ export function RawSpendTable({
   rows,
   loading,
   filtered = false,
+  claudeHome,
 }: {
   harness?: "claude" | "cursor" | "all";
   rows: SpendRow[];
   loading?: boolean;
   filtered?: boolean;
+  claudeHome?: string | null;
 }) {
   if (loading && rows.length === 0) {
     return <RawSpendTableSkeleton />;
@@ -168,7 +170,14 @@ export function RawSpendTable({
               ? "Run Claude Code locally and/or upload a Cursor usage-events CSV in Settings."
               : harness === "cursor"
                 ? "Upload a usage-events CSV in Settings or from the banner above."
-                : "Run Claude Code locally, then re-index ~/.claude logs."}
+                : claudeHome ? (
+                    <>
+                      Run Claude Code locally, then re-index logs from{" "}
+                      <span className="font-mono text-xs break-all">{claudeHome}</span>.
+                    </>
+                  ) : (
+                    "Run Claude Code locally, then re-index your local Claude logs."
+                  )}
         </p>
       </Surface>
     );

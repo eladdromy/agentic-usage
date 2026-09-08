@@ -37,6 +37,8 @@ export const SYNC_DEBOUNCE_MINUTES = [1, 5, 10] as const;
 export type SyncDebounceMinutes = (typeof SYNC_DEBOUNCE_MINUTES)[number];
 export type SyncMethod = "updates_only" | "full";
 
+export type OnboardingSuggestedFlow = "claude" | "cursor" | "both" | "none";
+
 export type AppSettings = {
   /** @deprecated Use planOverrides per month instead */
   planMonthlyUsd: number | null;
@@ -50,6 +52,11 @@ export type AppSettings = {
   activeHarness: ActiveHarness | null;
   syncDebounceMinutes: SyncDebounceMinutes;
   syncMethod: SyncMethod;
+  onboardingCompletedAt: string | null;
+  onboardingClaudeSubscriptionApproved: boolean;
+  onboardingCursorSubscriptionApproved: boolean;
+  onboardingCursorProjectSyncDone: boolean;
+  onboardingDeferredCursor: boolean;
 };
 
 export type ClaudeProfile = {
@@ -71,6 +78,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   activeHarness: null,
   syncDebounceMinutes: 1,
   syncMethod: "updates_only",
+  onboardingCompletedAt: null,
+  onboardingClaudeSubscriptionApproved: false,
+  onboardingCursorSubscriptionApproved: false,
+  onboardingCursorProjectSyncDone: false,
+  onboardingDeferredCursor: false,
 };
 
 function parseMonthlyPlanOverride(value: unknown): MonthlyPlanOverride | null {
@@ -119,16 +131,17 @@ function parseActiveHarness(value: unknown): ActiveHarness | null {
   return null;
 }
 
-export function detectDefaultHarness(): HarnessKind {
-  const hasClaude = claudeHomeExists();
-  const hasCursor = cursorVscdbExists(getResolvedVscdbPath(null));
+export function detectDefaultHarness(settings?: AppSettings): HarnessKind {
+  const s = settings ?? readSettings();
+  const hasClaude = claudeHomeExists(s.claudeHomeOverride);
+  const hasCursor = cursorVscdbExists(getResolvedVscdbPath(s.vscdbPathOverride));
   if (hasCursor && !hasClaude) return "cursor";
   return "claude";
 }
 
 export function resolveActiveHarness(settings?: AppSettings): ActiveHarness {
   const s = settings ?? readSettings();
-  return s.activeHarness ?? detectDefaultHarness();
+  return s.activeHarness ?? detectDefaultHarness(s);
 }
 
 export function resolveSingleHarness(settings?: AppSettings): HarnessKind {
@@ -179,6 +192,17 @@ export function readSettings(): AppSettings {
       activeHarness: parseActiveHarness(raw.activeHarness),
       syncDebounceMinutes: parseSyncDebounceMinutes(raw.syncDebounceMinutes),
       syncMethod: parseSyncMethod(raw.syncMethod),
+      onboardingCompletedAt:
+        typeof raw.onboardingCompletedAt === "string"
+          ? raw.onboardingCompletedAt
+          : null,
+      onboardingClaudeSubscriptionApproved:
+        raw.onboardingClaudeSubscriptionApproved === true,
+      onboardingCursorSubscriptionApproved:
+        raw.onboardingCursorSubscriptionApproved === true,
+      onboardingCursorProjectSyncDone:
+        raw.onboardingCursorProjectSyncDone === true,
+      onboardingDeferredCursor: raw.onboardingDeferredCursor === true,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

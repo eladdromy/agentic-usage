@@ -278,7 +278,7 @@ function resolveSyncMode(): SyncMethod {
 
 function needsSync(): boolean {
   const lastMs = sourceMtimeWatermarkMs();
-  const files = discoverClaudeJsonlFiles();
+  const files = discoverClaudeJsonlFiles(readSettings().claudeHomeOverride);
   const maxMtime = files.reduce((m, f) => Math.max(m, f.mtimeMs), 0);
   return maxMtime > lastMs;
 }
@@ -336,7 +336,7 @@ async function runSyncClaudeUsageFromJsonl(): Promise<SyncResult> {
     )
   `);
 
-  const allFiles = discoverClaudeJsonlFiles();
+  const allFiles = discoverClaudeJsonlFiles(readSettings().claudeHomeOverride);
   const watermark = sourceMtimeWatermarkMs();
   const filesToScan =
     syncMode === "full"

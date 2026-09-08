@@ -65,7 +65,7 @@ export function ProjectSyncModal({
           <p className="text-sm text-destructive">{snapshot.error}</p>
         ) : null}
 
-        <DialogFooter className="-mx-4 -mb-4 mt-2 border-t bg-muted/50 p-4">
+        <DialogFooter className="mt-2">
           <Button type="button" disabled={!finished} onClick={onClose}>
             {finished
               ? snapshot?.status === "error"
