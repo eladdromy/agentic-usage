@@ -27,6 +27,11 @@ const INDEX_DB_PATH = path.join(getDataDir(), "cursor-bubble-index.db");
 
 let indexConn: DatabaseConstructor.Database | null = null;
 let indexBuildInFlight: string | null = null;
+const indexBuildPromises = new Map<string, Promise<void>>();
+
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
 
 function composerIdFromBubbleKey(key: string): string | null {
   if (!key.startsWith(BUBBLE_KEY_MIN)) return null;
@@ -223,7 +228,10 @@ function parseBubbleRow(key: string, raw: string): GlobalBubbleStub | null {
   return { composerId, createdAtSec, bubbleType };
 }
 
-function syncBubbleIndexFromVscdb(vscdbPath: string, incremental: boolean): void {
+async function syncBubbleIndexFromVscdbAsync(
+  vscdbPath: string,
+  incremental: boolean,
+): Promise<void> {
   const vscdb = getReadonlyCursorDatabase(vscdbPath);
   if (!cursorDiskKvTableExists(vscdb)) return;
 
@@ -275,12 +283,13 @@ function syncBubbleIndexFromVscdb(vscdbPath: string, incremental: boolean): void
     bubble_type: number;
   }> = [];
 
-  const flush = () => {
+  const flush = async () => {
     if (batch.length === 0) return;
     indexDb.transaction(() => {
       for (const row of batch) insert.run(row);
     })();
     batch.length = 0;
+    await yieldEventLoop();
   };
 
   const iter = watermark
@@ -297,9 +306,13 @@ function syncBubbleIndexFromVscdb(vscdbPath: string, incremental: boolean): void
       created_at_sec: parsed.createdAtSec,
       bubble_type: parsed.bubbleType,
     });
-    if (batch.length >= 500) flush();
+    if (batch.length >= 500) await flush();
   }
-  flush();
+  if (batch.length > 0) {
+    indexDb.transaction(() => {
+      for (const row of batch) insert.run(row);
+    })();
+  }
 
   indexDb.prepare(
     `INSERT INTO bubble_index_meta (id, vscdb_path, vscdb_mtime_ms, last_key)
@@ -326,39 +339,19 @@ export function isCursorBubbleIndexReady(vscdbPath: string): boolean {
   return readVscdbMtimeMs(vscdbPath) <= meta.vscdb_mtime_ms;
 }
 
-export function ensureCursorBubbleIndexSync(vscdbPath: string): void {
+export async function ensureCursorBubbleIndexSyncAsync(
+  vscdbPath: string,
+): Promise<void> {
   if (isCursorBubbleIndexReady(vscdbPath)) return;
-  if (indexBuildInFlight === vscdbPath) return;
 
-  indexBuildInFlight = vscdbPath;
-  try {
-    const indexDb = getIndexDatabase();
-    const meta = indexDb
-      .prepare(
-        `SELECT vscdb_path, vscdb_mtime_ms, last_key FROM bubble_index_meta WHERE id = 1`,
-      )
-      .get() as
-      | { vscdb_path: string; vscdb_mtime_ms: number; last_key: string }
-      | undefined;
-    const count = indexDb
-      .prepare(`SELECT COUNT(*) AS count FROM bubble_index`)
-      .get() as { count: number };
-
-    syncBubbleIndexFromVscdb(
-      vscdbPath,
-      Boolean(meta && meta.vscdb_path === vscdbPath && count.count > 0),
-    );
-  } finally {
-    indexBuildInFlight = null;
+  const existing = indexBuildPromises.get(vscdbPath);
+  if (existing) {
+    await existing;
+    return;
   }
-}
 
-export function scheduleCursorBubbleIndexBuild(vscdbPath: string): void {
-  if (isCursorBubbleIndexReady(vscdbPath)) return;
-  if (indexBuildInFlight === vscdbPath) return;
-
-  indexBuildInFlight = vscdbPath;
-  setImmediate(() => {
+  const buildPromise = (async () => {
+    indexBuildInFlight = vscdbPath;
     try {
       const indexDb = getIndexDatabase();
       const meta = indexDb
@@ -372,14 +365,22 @@ export function scheduleCursorBubbleIndexBuild(vscdbPath: string): void {
         .prepare(`SELECT COUNT(*) AS count FROM bubble_index`)
         .get() as { count: number };
 
-      syncBubbleIndexFromVscdb(
+      await syncBubbleIndexFromVscdbAsync(
         vscdbPath,
         Boolean(meta && meta.vscdb_path === vscdbPath && count.count > 0),
       );
     } finally {
       indexBuildInFlight = null;
+      indexBuildPromises.delete(vscdbPath);
     }
-  });
+  })();
+
+  indexBuildPromises.set(vscdbPath, buildPromise);
+  await buildPromise;
+}
+
+export function scheduleCursorBubbleIndexBuild(vscdbPath: string): void {
+  void ensureCursorBubbleIndexSyncAsync(vscdbPath);
 }
 
 export function queryIndexedBubbleKeysInRange(
@@ -461,6 +462,43 @@ export function loadGlobalBubblesInRangeDirect(
   return stubs;
 }
 
+export async function loadGlobalBubblesInRangeDirectAsync(
+  fromSec: number,
+  toSec: number,
+  dbPath: string,
+): Promise<GlobalBubbleStub[]> {
+  const db = getReadonlyCursorDatabase(dbPath);
+  if (!cursorDiskKvTableExists(db)) return [];
+
+  const roughFrom = Math.floor(fromSec);
+  const roughTo = Math.ceil(toSec);
+
+  const select = db.prepare(
+    `SELECT key, CAST(value AS TEXT) AS value
+     FROM ${CURSOR_DISK_KV_TABLE}
+     WHERE key >= ?
+       AND key < ?`,
+  );
+
+  const stubs: GlobalBubbleStub[] = [];
+  let scanned = 0;
+  for (const row of select.iterate(BUBBLE_KEY_MIN, BUBBLE_KEY_MAX) as Iterable<{
+    key: string;
+    value: string;
+  }>) {
+    scanned += 1;
+    const createdAtSec = parseBubbleCreatedAtSecFromRaw(row.value);
+    if (createdAtSec == null || createdAtSec < roughFrom || createdAtSec > roughTo) {
+      if (scanned % 2000 === 0) await yieldEventLoop();
+      continue;
+    }
+    const parsed = parseBubbleRow(row.key, row.value);
+    if (parsed) stubs.push(parsed);
+    if (scanned % 2000 === 0) await yieldEventLoop();
+  }
+  return stubs;
+}
+
 export function loadGlobalBubblesForAttach(
   fromSec: number,
   toSec: number,
@@ -488,6 +526,37 @@ export function loadGlobalBubblesForAttach(
   }
 
   const direct = loadGlobalBubblesInRangeDirect(roughFrom, roughTo, vscdbPath);
+  scheduleCursorBubbleIndexBuild(vscdbPath);
+  return direct;
+}
+
+export async function loadGlobalBubblesForAttachAsync(
+  fromSec: number,
+  toSec: number,
+  vscdbPath: string,
+  options?: { fastPath?: boolean },
+): Promise<GlobalBubbleStub[]> {
+  const roughFrom = Math.floor(fromSec);
+  const roughTo = Math.ceil(toSec);
+  const fastPath = options?.fastPath !== false;
+
+  if (isCursorBubbleIndexReady(vscdbPath)) {
+    return queryIndexedBubblesInRange(roughFrom, roughTo, vscdbPath);
+  }
+
+  if (fastPath) {
+    const viaHeaders = loadGlobalBubblesViaComposerHeaders(
+      roughFrom,
+      roughTo,
+      vscdbPath,
+    );
+    if (viaHeaders.length > 0) {
+      scheduleCursorBubbleIndexBuild(vscdbPath);
+      return viaHeaders;
+    }
+  }
+
+  const direct = await loadGlobalBubblesInRangeDirectAsync(roughFrom, roughTo, vscdbPath);
   scheduleCursorBubbleIndexBuild(vscdbPath);
   return direct;
 }

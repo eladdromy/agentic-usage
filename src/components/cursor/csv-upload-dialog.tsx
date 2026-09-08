@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { LoaderCircle, Upload } from "lucide-react";
+import { toast } from "sonner";
 
+import { useProjectSync } from "@/components/cursor/project-sync-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,16 +17,36 @@ import {
 import type { ProviderUsageUploadResult } from "@/lib/cursor/provider-usage-types";
 import { assertProviderUsageUploadFile } from "@/lib/cursor/provider-usage-csv";
 
+function noNewRowsMessage(result: ProviderUsageUploadResult): string {
+  if (result.skipped > 0) {
+    return `No new rows — ${result.skipped.toLocaleString()} already imported`;
+  }
+  return "No billing rows found in file";
+}
+
+function formatUploadSummary(result: ProviderUsageUploadResult): string {
+  return (
+    `Imported ${result.inserted.toLocaleString()} billing rows` +
+    (result.skipped > 0
+      ? ` (${result.skipped.toLocaleString()} duplicates skipped)`
+      : "")
+  );
+}
+
 export function CursorCsvUploadDialog({
   open,
   onOpenChange,
   onUploaded,
+  onSyncComplete,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUploaded: (result: ProviderUsageUploadResult) => void;
+  onSyncComplete?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const { startProjectSync } = useProjectSync();
+
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -74,7 +96,23 @@ export function CursorCsvUploadDialog({
         error?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Upload failed");
+
       onUploaded(json);
+
+      if (json.inserted === 0) {
+        toast.info(noNewRowsMessage(json));
+        reset();
+        onOpenChange(false);
+        return;
+      }
+
+      void startProjectSync({
+        uploadSummary: formatUploadSummary(json),
+        dateFrom: json.dateFrom,
+        dateTo: json.dateTo,
+        onComplete: onSyncComplete,
+      });
+
       reset();
       onOpenChange(false);
     } catch (e) {
@@ -84,8 +122,23 @@ export function CursorCsvUploadDialog({
     }
   };
 
+  useEffect(() => {
+    if (!open) {
+      reset();
+    }
+  }, [open, reset]);
+
   return (
-    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : handleClose())}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (next) {
+          onOpenChange(true);
+          return;
+        }
+        handleClose();
+      }}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Upload usage-events CSV</DialogTitle>

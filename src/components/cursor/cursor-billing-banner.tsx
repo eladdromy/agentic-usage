@@ -12,9 +12,11 @@ import type { ProviderUsageUploadResult } from "@/lib/cursor/provider-usage-type
 export function CursorBillingBanner({
   coverage,
   onUploaded,
+  onSyncComplete,
 }: {
   coverage: BillingCoveragePayload | null;
   onUploaded?: (result: ProviderUsageUploadResult) => void;
+  onSyncComplete?: () => void;
 }) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -76,6 +78,7 @@ export function CursorBillingBanner({
         open={uploadOpen}
         onOpenChange={setUploadOpen}
         onUploaded={handleUploaded}
+        onSyncComplete={onSyncComplete}
       />
     </>
   );

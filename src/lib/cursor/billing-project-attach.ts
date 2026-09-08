@@ -1,14 +1,18 @@
 import {
   attributeBillingEventWithContext,
   createBillingAttributionContext,
+  createBillingAttributionContextAsync,
+  type BillingAttributionContext,
+  type GlobalBubbleStub,
 } from "@/lib/cursor/billing-event-attribution";
-import { buildSubagentParentProjectIndex } from "@/lib/cursor/cursor-subagent-spawn";
+import { buildSubagentParentProjectIndexAsync } from "@/lib/cursor/cursor-subagent-spawn";
 import {
   loadComposerProjectMap,
   resolveComposerProjectPath,
 } from "@/lib/cursor/project-attribution";
 import { getReadonlyCursorDatabase } from "@/lib/cursor/vscdb";
 import type { ProviderUsageParsedRow } from "@/lib/cursor/provider-usage-types";
+import { isCursorBubbleIndexReady } from "@/lib/cursor/cursor-bubble-index";
 import {
   isVscdbAvailableForAttribution,
   loadGlobalBubblesInRange,
@@ -58,7 +62,8 @@ const REASON_LABELS: Record<ProjectUnmatchReason, string> = {
 };
 
 const ATTACH_BATCH_SIZE = 50;
-const ATTACH_YIELD_EVERY = 50;
+const ATTACH_YIELD_EVERY = 10;
+const ATTACH_PROGRESS_EVERY = 1;
 
 export function unmatchReasonLabel(reason: ProjectUnmatchReason): string {
   return REASON_LABELS[reason];
@@ -92,6 +97,7 @@ export function dayUtcSecBounds(fromDay: string, toDay: string): { fromSec: numb
 
 export function buildProjectSyncMonthsPayload(): {
   vscdbAvailable: boolean;
+  bubbleIndexReady: boolean;
   months: {
     month: string;
     label: string;
@@ -101,8 +107,12 @@ export function buildProjectSyncMonthsPayload(): {
     unmatchedRows: number;
   }[];
 } {
+  const vscdbAvailable = isVscdbAvailableForAttribution();
+  const vscdbPath = vscdbAvailable ? resolveVscdbPathForAttribution() : null;
+
   return {
-    vscdbAvailable: isVscdbAvailableForAttribution(),
+    vscdbAvailable,
+    bubbleIndexReady: vscdbPath ? isCursorBubbleIndexReady(vscdbPath) : false,
     months: queryProjectSyncMonths().map((row) => ({
       ...row,
       label: formatBillingMonthLabel(row.month),
@@ -119,6 +129,36 @@ function withMonthMeta(
 
 function yieldEventLoop(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve));
+}
+
+async function filterPreloadedBubblesAsync(
+  preloaded: GlobalBubbleStub[],
+  roughFrom: number,
+  roughTo: number,
+): Promise<GlobalBubbleStub[]> {
+  const out: GlobalBubbleStub[] = [];
+  for (let index = 0; index < preloaded.length; index++) {
+    const bubble = preloaded[index]!;
+    if (bubble.createdAtSec >= roughFrom && bubble.createdAtSec <= roughTo) {
+      out.push(bubble);
+    }
+    if ((index + 1) % 10_000 === 0) {
+      await yieldEventLoop();
+    }
+  }
+  return out;
+}
+
+function unmatchReasonFromUpdate(
+  update: ProjectAttachBatchUpdate,
+): ProjectUnmatchReason | null {
+  if (update.type === "failure") {
+    return update.reason as ProjectUnmatchReason;
+  }
+  if (update.type === "project" && update.unmatchReason) {
+    return update.unmatchReason as ProjectUnmatchReason;
+  }
+  return null;
 }
 
 function planAttachUpdate(
@@ -197,8 +237,19 @@ async function attachProjectsCore(
     fastPath?: boolean;
     composerProjects?: Map<string, string>;
     taskV2Dispatches?: ReturnType<typeof loadTaskV2DispatchBubbles>;
+    preloadedBubbles?: GlobalBubbleStub[];
+    billingAttributionContext?: BillingAttributionContext | null;
+    subagentParentProjects?: Map<string, string>;
+    onProgress?: (progress: {
+      processed: number;
+      total: number;
+      matched: number;
+      unmatched: number;
+    }) => void;
   },
 ): Promise<BillingProjectAttachResult> {
+  await yieldEventLoop();
+
   const month = options?.month?.trim();
   const monthBounds = month ? monthUtcSecBounds(month) : null;
   const queryFromSec = options?.fromSec ?? monthBounds?.fromSec;
@@ -256,30 +307,69 @@ async function attachProjectsCore(
   const bubbleToSec = eventToSec;
   const fastBubblePath = options?.fastPath !== false;
 
-  const bubbles = loadGlobalBubblesInRange(bubbleFromSec, bubbleToSec, vscdbPath, {
-    fastPath: fastBubblePath,
-  });
-  const attributionCtx = createBillingAttributionContext(bubbles);
+  let matched = 0;
+  let unmatched = 0;
+
+  const reportProgress = async (processed: number) => {
+    options?.onProgress?.({
+      processed,
+      total: needsAttach.length,
+      matched,
+      unmatched,
+    });
+    await yieldEventLoop();
+  };
+
+  const hasPreparedAttribution = options?.billingAttributionContext !== undefined;
+
+  let attributionCtx: BillingAttributionContext | null;
+  if (hasPreparedAttribution) {
+    attributionCtx = options!.billingAttributionContext ?? null;
+    await yieldEventLoop();
+  } else {
+    await yieldEventLoop();
+
+    const roughFrom = Math.floor(bubbleFromSec);
+    const roughTo = Math.ceil(bubbleToSec);
+    const bubbles =
+      options?.preloadedBubbles != null
+        ? await filterPreloadedBubblesAsync(
+            options.preloadedBubbles,
+            roughFrom,
+            roughTo,
+          )
+        : loadGlobalBubblesInRange(bubbleFromSec, bubbleToSec, vscdbPath, {
+            fastPath: fastBubblePath,
+          });
+
+    await yieldEventLoop();
+
+    attributionCtx = await createBillingAttributionContextAsync(bubbles);
+  }
+
   const composerProjects =
     options?.composerProjects ??
     loadComposerProjectMap(vscdbPath, { scanWorkspaces: true });
   const db = getReadonlyCursorDatabase(vscdbPath);
-  const taskV2Dispatches = fastBubblePath
-    ? (options?.taskV2Dispatches ?? [])
-    : loadTaskV2DispatchBubbles(vscdbPath, {
-        fromSec: bubbleFromSec,
-        toSec: bubbleToSec,
-      });
-  const subagentParentProjects = buildSubagentParentProjectIndex(
-    taskV2Dispatches,
-    (parentComposerId) =>
+  const taskV2Dispatches =
+    options?.taskV2Dispatches ??
+    (fastBubblePath
+      ? []
+      : loadTaskV2DispatchBubbles(vscdbPath, {
+          fromSec: bubbleFromSec,
+          toSec: bubbleToSec,
+        }));
+  await yieldEventLoop();
+
+  const subagentParentProjects =
+    options?.subagentParentProjects ??
+    (await buildSubagentParentProjectIndexAsync(taskV2Dispatches, (parentComposerId) =>
       resolveComposerProjectPath(db, parentComposerId, composerProjects, new Map()),
-  );
+    ));
 
-  let matched = 0;
-  let unmatched = 0;
+  await yieldEventLoop();
 
-  if (!attributionCtx || bubbles.length === 0) {
+  if (!attributionCtx) {
     applyProjectAttachBatch(
       needsAttach
         .filter(rowNeedsProjectAttach)
@@ -291,6 +381,8 @@ async function attachProjectsCore(
           composerId: row.composerId.trim(),
         })),
     );
+    unmatched = needsAttach.filter(rowNeedsProjectAttach).length;
+    await reportProgress(needsAttach.length);
     return withMonthMeta(month, {
       scanned: events.length,
       matched: 0,
@@ -299,6 +391,8 @@ async function attachProjectsCore(
       vscdbAvailable: true,
     });
   }
+
+  await reportProgress(0);
 
   let pendingBatch: ProjectAttachBatchUpdate[] = [];
 
@@ -311,11 +405,7 @@ async function attachProjectsCore(
 
   for (let index = 0; index < needsAttach.length; index++) {
     const row = needsAttach[index]!;
-    const batch: ProjectAttachBatchUpdate[] = [];
-
-    if (row.projectUnmatchReason.trim()) {
-      batch.push({ type: "clear_reason", id: row.id });
-    }
+    const priorReason = row.projectUnmatchReason.trim() as ProjectUnmatchReason | "";
 
     const parsed: Pick<ProviderUsageParsedRow, "date"> = { date: row.dateIso };
     const needsComposer = rowNeedsComposerAttach(row);
@@ -335,17 +425,37 @@ async function attachProjectsCore(
       composerProjects,
       subagentParentProjects,
     );
-    batch.push(outcome.update);
     if (outcome.matched) matched += 1;
     if (outcome.unmatched) unmatched += 1;
 
-    pendingBatch.push(...batch);
+    const nextReason = unmatchReasonFromUpdate(outcome.update);
+    const unchangedRetryFailure =
+      priorReason !== "" &&
+      outcome.unmatched &&
+      nextReason === priorReason;
+
+    if (!unchangedRetryFailure) {
+      const batch: ProjectAttachBatchUpdate[] = [];
+      if (priorReason) {
+        batch.push({ type: "clear_reason", id: row.id });
+      }
+      batch.push(outcome.update);
+      pendingBatch.push(...batch);
+    }
 
     const atBatchLimit = pendingBatch.length >= ATTACH_BATCH_SIZE;
     const atYieldPoint = (index + 1) % ATTACH_YIELD_EVERY === 0;
+    const atProgressPoint =
+      (index + 1) % ATTACH_PROGRESS_EVERY === 0 || index === needsAttach.length - 1;
     const isLast = index === needsAttach.length - 1;
     if (atBatchLimit || isLast) {
       await flushBatch(atYieldPoint && !isLast);
+    } else if (atProgressPoint) {
+      await yieldEventLoop();
+    }
+
+    if (atProgressPoint) {
+      await reportProgress(index + 1);
     }
   }
 
@@ -367,6 +477,15 @@ export async function attachProjectsToBillingEvents(
     fastPath?: boolean;
     composerProjects?: Map<string, string>;
     taskV2Dispatches?: ReturnType<typeof loadTaskV2DispatchBubbles>;
+    preloadedBubbles?: GlobalBubbleStub[];
+    billingAttributionContext?: BillingAttributionContext | null;
+    subagentParentProjects?: Map<string, string>;
+    onProgress?: (progress: {
+      processed: number;
+      total: number;
+      matched: number;
+      unmatched: number;
+    }) => void;
   },
 ): Promise<BillingProjectAttachResult> {
   return attachProjectsCore(options);

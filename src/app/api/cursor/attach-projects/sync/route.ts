@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
 
 import {
-  getActiveProjectSyncJob,
+  getLatestProjectSyncJob,
   startProjectSyncBackground,
   type StartProjectSyncBackgroundOptions,
 } from "@/lib/cursor/project-sync-background";
 
 export const runtime = "nodejs";
 
-/** Poll background project sync progress (non-blocking for navigation). */
+/**
+ * Poll background project sync progress (non-blocking for navigation).
+ * Returns the latest job even once it has finished so a client that polls
+ * slower than the job runs can still read the final per-month result.
+ */
 export async function GET() {
-  const job = getActiveProjectSyncJob();
+  const job = getLatestProjectSyncJob();
   if (!job) {
     return NextResponse.json({ status: "idle" as const });
   }

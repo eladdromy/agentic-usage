@@ -710,6 +710,56 @@ export type DbEventForAttach = {
   composerId: string;
 };
 
+/** Min/max timestamps for rows that still need project/composer attach. */
+export function queryProjectAttachRowBounds(options: {
+  months: string[];
+  pendingOnly?: boolean;
+}): { fromSec: number; toSec: number; rowCount: number } | null {
+  if (options.months.length === 0) return null;
+
+  const db = getDatabase();
+  const monthPlaceholders = options.months.map(() => "?").join(", ");
+  const conditions: string[] = [
+    `strftime('%Y-%m', date_iso) IN (${monthPlaceholders})`,
+    "(TRIM(composer_id) = '' OR TRIM(project) = '')",
+  ];
+  const params: (number | string)[] = [...options.months];
+
+  if (options.pendingOnly) {
+    conditions.push(`(
+      (TRIM(project) = '' AND TRIM(project_unmatch_reason) = '')
+      OR (
+        TRIM(project) != ''
+        AND TRIM(composer_id) = ''
+        AND TRIM(project_unmatch_reason) = ''
+      )
+    )`);
+  }
+
+  const row = db
+    .prepare(
+      `SELECT
+         MIN(date_sec) AS min_sec,
+         MAX(date_sec) AS max_sec,
+         COUNT(*) AS row_count
+       FROM provider_usage_events
+       WHERE ${conditions.join(" AND ")}`,
+    )
+    .get(...params) as
+    | { min_sec: number | null; max_sec: number | null; row_count: number }
+    | undefined;
+
+  if (!row?.row_count || row.min_sec == null || row.max_sec == null) {
+    return null;
+  }
+
+  return {
+    fromSec: row.min_sec,
+    toSec: row.max_sec,
+    rowCount: row.row_count,
+  };
+}
+
 export function queryProviderEventsForProjectAttach(options?: {
   fromSec?: number;
   toSec?: number;

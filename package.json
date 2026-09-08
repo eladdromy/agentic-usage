@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "screenshots": "bash scripts/capture-readme-screenshots.sh",
-    "screenshots:verify": "node scripts/verify-no-leaks.mjs"
+    "screenshots:verify": "node scripts/verify-no-leaks.mjs",
+    "reset:cursor": "bash scripts/reset-cursor-data.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

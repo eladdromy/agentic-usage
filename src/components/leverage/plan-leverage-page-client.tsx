@@ -128,6 +128,7 @@ export function PlanLeveragePageClient() {
           <CursorBillingBanner
             coverage={coverage}
             onUploaded={() => setRefreshKey((k) => k + 1)}
+            onSyncComplete={() => setRefreshKey((k) => k + 1)}
           />
         ) : null
       ) : null}

@@ -1,9 +1,21 @@
 import type { BillingProjectAttachResult } from "@/lib/cursor/billing-project-attach";
 import type {
+  ProjectSyncBackgroundJob,
   ProjectSyncMonthState,
   ProjectSyncMonthsPayload,
+  ProjectSyncPhase,
+  ProjectSyncPreparingStep,
 } from "@/lib/cursor/project-sync-types";
-import type { ProjectSyncBackgroundJob } from "@/lib/cursor/project-sync-background";
+
+export type ProjectSyncJobSnapshot = {
+  phase: ProjectSyncPhase;
+  preparingStep?: ProjectSyncPreparingStep;
+  bubbleIndexReady: boolean;
+  months: ProjectSyncMonthState[];
+  status: ProjectSyncBackgroundJob["status"];
+  finished: boolean;
+  error?: string;
+};
 
 export async function fetchProjectSyncMonths(): Promise<ProjectSyncMonthsPayload> {
   const res = await fetch("/api/cursor/attach-projects");
@@ -56,6 +68,18 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function snapshotFromJob(job: ProjectSyncBackgroundJob): ProjectSyncJobSnapshot {
+  return {
+    phase: job.phase,
+    preparingStep: job.preparingStep,
+    bubbleIndexReady: job.bubbleIndexReady,
+    months: job.months,
+    status: job.status,
+    finished: job.status !== "running",
+    error: job.error,
+  };
+}
+
 async function fetchBackgroundSyncJob(): Promise<ProjectSyncBackgroundJob | null> {
   const res = await fetch("/api/cursor/attach-projects/sync");
   if (!res.ok) throw new Error("Failed to load project sync status");
@@ -88,12 +112,11 @@ export async function runProjectSyncByMonth(options: {
   /** When false, also re-run months that have unmatched rows from a prior sync. */
   onlyPending?: boolean;
   retryUnmatched?: boolean;
-  onMonthChange: (month: string, state: ProjectSyncMonthState) => void;
-}): Promise<void> {
+  onJobChange: (snapshot: ProjectSyncJobSnapshot) => void;
+}): Promise<ProjectSyncJobSnapshot> {
   const existing = await fetchBackgroundSyncJob();
   if (existing?.status === "running") {
-    await pollBackgroundSyncJob(existing.id, options.onMonthChange);
-    return;
+    return pollBackgroundSyncJob(existing.id, options.onJobChange);
   }
 
   const job = await startBackgroundSync({
@@ -104,43 +127,67 @@ export async function runProjectSyncByMonth(options: {
     retryUnmatched: options.retryUnmatched === true,
   });
 
-  for (const month of job.months) {
-    options.onMonthChange(month.month, month);
-  }
+  options.onJobChange(snapshotFromJob(job));
 
-  await pollBackgroundSyncJob(job.id, options.onMonthChange);
+  return pollBackgroundSyncJob(job.id, options.onJobChange);
 }
 
 async function pollBackgroundSyncJob(
   jobId: string,
-  onMonthChange: (month: string, state: ProjectSyncMonthState) => void,
-): Promise<void> {
+  onJobChange: (snapshot: ProjectSyncJobSnapshot) => void,
+): Promise<ProjectSyncJobSnapshot> {
   let lastSnapshot = "";
-  let sawRunning = false;
+  let finalSnapshot: ProjectSyncJobSnapshot = {
+    phase: "preparing",
+    bubbleIndexReady: true,
+    months: [],
+    status: "running",
+    finished: false,
+  };
 
   while (true) {
     const job = await fetchBackgroundSyncJob();
 
     if (job?.id === jobId) {
-      sawRunning = job.status === "running" || sawRunning;
-
-      const snapshot = JSON.stringify(job.months);
+      const snapshot = JSON.stringify({
+        phase: job.phase,
+        preparingStep: job.preparingStep,
+        months: job.months,
+        status: job.status,
+      });
       if (snapshot !== lastSnapshot) {
         lastSnapshot = snapshot;
-        for (const month of job.months) {
-          onMonthChange(month.month, month);
-        }
+        finalSnapshot = snapshotFromJob(job);
+        onJobChange(finalSnapshot);
       }
 
+      // The job may finish within a single poll interval; a non-running status
+      // is the authoritative final snapshot (real per-month matched/unmatched).
       if (job.status !== "running") {
         break;
       }
-    } else if (sawRunning) {
+    } else {
+      // Our job is no longer the latest on the server (superseded by a newer sync).
+      // Finalize with the best-known snapshot so the UI never hangs waiting for progress
+      // that will never arrive for this job id.
+      if (!finalSnapshot.finished) {
+        finalSnapshot = {
+          ...finalSnapshot,
+          phase: "done",
+          finished: true,
+          status: finalSnapshot.months.some((month) => month.status === "error")
+            ? "error"
+            : "done",
+        };
+        onJobChange(finalSnapshot);
+      }
       break;
     }
 
     await sleep(POLL_INTERVAL_MS);
   }
+
+  return finalSnapshot;
 }
 
 export function idleProjectSyncMonths(
