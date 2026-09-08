@@ -382,6 +382,24 @@ export function scheduleCursorBubbleIndexBuild(vscdbPath: string): void {
   });
 }
 
+export function queryIndexedBubbleKeysInRange(
+  fromSec: number,
+  toSec: number,
+  vscdbPath: string,
+): string[] {
+  if (!isCursorBubbleIndexReady(vscdbPath)) return [];
+
+  const rows = getIndexDatabase()
+    .prepare(
+      `SELECT key FROM bubble_index
+       WHERE created_at_sec >= ? AND created_at_sec <= ?
+       ORDER BY created_at_sec ASC`,
+    )
+    .all(fromSec, toSec) as { key: string }[];
+
+  return rows.map((row) => row.key);
+}
+
 export function queryIndexedBubblesInRange(
   fromSec: number,
   toSec: number,

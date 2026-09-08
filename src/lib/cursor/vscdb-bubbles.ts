@@ -12,7 +12,9 @@ import {
 import {
   BUBBLE_KEY_MAX,
   BUBBLE_KEY_MIN,
+  isCursorBubbleIndexReady,
   loadGlobalBubblesForAttach,
+  queryIndexedBubbleKeysInRange,
 } from "@/lib/cursor/cursor-bubble-index";
 import {
   CURSOR_DISK_KV_TABLE,
@@ -65,6 +67,37 @@ export function loadTaskV2DispatchBubbles(
     const roughFrom =
       range != null ? Math.floor(range.fromSec - BUFFER_SEC) : null;
     const roughTo = range != null ? Math.ceil(range.toSec + BUFFER_SEC) : null;
+
+    if (
+      roughFrom != null &&
+      roughTo != null &&
+      isCursorBubbleIndexReady(resolved)
+    ) {
+      const keys = queryIndexedBubbleKeysInRange(roughFrom, roughTo, resolved);
+      const getKv = db.prepare(
+        `SELECT key, CAST(value AS TEXT) AS value
+         FROM ${CURSOR_DISK_KV_TABLE}
+         WHERE key = ?`,
+      );
+
+      const out: TaskV2DispatchBubble[] = [];
+      for (const key of keys) {
+        const row = getKv.get(key) as { key: string; value: string } | undefined;
+        if (!row?.value.includes('"name":"task_v2"')) continue;
+
+        const parentComposerId = parseComposerIdFromBubbleKey(row.key);
+        if (!parentComposerId) continue;
+        if (extractSpawnedSubagentComposerIdsFromRaw(row.value).length === 0) {
+          continue;
+        }
+        out.push({
+          key: row.key,
+          parentComposerId,
+          raw: row.value,
+        });
+      }
+      return out;
+    }
 
     const select = db.prepare(
       `SELECT key, CAST(value AS TEXT) AS value

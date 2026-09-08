@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CalendarRange, CircleCheck, ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -196,11 +196,12 @@ export function BillingGapList({
     [coverage],
   );
 
-  useEffect(() => {
-    if (open) {
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (nextOpen) {
       setActiveTab(missingRanges.length > 0 ? "missing" : "uploaded");
     }
-  }, [open, missingRanges.length]);
+  }
 
   if (
     !coverage.costSourceAvailable ||
@@ -215,12 +216,12 @@ export function BillingGapList({
         icon={CalendarRange}
         title="Billing coverage"
         description={summary}
-        onClick={() => setOpen(true)}
+        onClick={() => handleOpenChange(true)}
       />
 
       <SettingsDetailDialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={handleOpenChange}
         title="Billing coverage"
         description="CSV upload date spans and gaps between uploads."
       >

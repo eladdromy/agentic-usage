@@ -48,7 +48,7 @@ Re-run attribution without re-uploading: `POST /api/cursor/attach-projects` (opt
 
 After CSV upload, project sync runs **in the background** (one month at a time, sequentially). Only billing months touched by the uploaded file’s date span are synced — e.g. a CSV covering 2026-09-08 syncs September only. Progress appears in a bottom-right toast; the Settings project sync dialog is for status inspection only.
 
-Sync uses `POST /api/cursor/attach-projects/sync` (returns **202 immediately**) and polls `GET /api/cursor/attach-projects/sync` for progress — long work no longer holds an HTTP connection open, so navigation stays responsive in dev.
+Sync uses `POST /api/cursor/attach-projects/sync` (returns **202 immediately**) and polls `GET /api/cursor/attach-projects/sync` for progress — long work no longer holds an HTTP connection open, so navigation stays responsive in dev. `GET` returns `{ status: "idle" }` when no sync is running; completed jobs are not kept on the server.
 
 Per month, sync: loads Cursor `state.vscdb` prompts/bubbles for the **pending rows’ date window** in that month (not the full CSV span), matches each unattached CSV row to a composer → workspace path, and writes `project` / `composer_id` on billing rows. After upload, only **pending rows in the uploaded CSV date span** are processed (not the whole month or prior failures).
 
@@ -87,7 +87,7 @@ Both pages query `provider_usage_events` directly — no full vscdb conversation
 - **Settings billing coverage dialog** — merges per-CSV spans (overlap or touch) into uploaded ranges; gaps are only **between** upload spans, plus trailing days after the last upload through today. Idle days inside a CSV span are not treated as missing.
 - `uploadedMonths` / `missingMonths` — calendar-month views (used by spend alerts)
 - `periods` — one entry per calendar month in the CSV (with Cursor dashboard export URLs)
-- `exportAll` — merged uploaded span across CSV uploads
+- `exportAll` — single export link when merged uploads form one contiguous span; `null` when uploads leave gaps (use per-range links from `uploadedRanges` instead)
 - `extendToToday` — trailing gap after the last CSV upload through today
 
 ## Subscription plan (separate from CSV)

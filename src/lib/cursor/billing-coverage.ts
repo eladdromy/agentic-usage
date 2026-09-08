@@ -15,14 +15,11 @@ import { isVscdbAvailableForAttribution } from "@/lib/cursor/vscdb-bubbles";
 import {
   buildBillingCoverageFromImports,
   buildCsvExportPeriods,
+  buildExportAllFromUploadedRanges,
   buildMissingMonths,
   buildUploadedMonths,
-  cursorUsageDashboardUrl,
   type BillingCoveragePayload,
   type BillingExportAll,
-  type BillingGapRange,
-  type BillingMonthRange,
-  type BillingPeriodRange,
 } from "@/lib/cursor/billing-coverage-shared";
 
 export type {
@@ -36,6 +33,7 @@ export type {
 export {
   buildBillingCoverageFromImports,
   buildCsvExportPeriods,
+  buildExportAllFromUploadedRanges,
   buildMissingMonths,
   buildUploadedMonths,
   buildMissingDayRanges,
@@ -86,9 +84,9 @@ export function buildBillingCoveragePayload(): BillingCoveragePayload {
 
   const exportAll =
     uploadedRanges.length > 0
-      ? toExportRange(
-          uploadedRanges[0]!.from,
-          uploadedRanges[uploadedRanges.length - 1]!.to,
+      ? buildExportAllFromUploadedRanges(
+          uploadedRanges,
+          dataRange ? toExportRange(dataRange.from, dataRange.to) : null,
         )
       : dataRange
         ? toExportRange(dataRange.from, dataRange.to)
@@ -133,6 +131,6 @@ function buildProjectAttributionPayload(): BillingCoveragePayload["projectAttrib
 }
 
 /** @deprecated CSV-only mode has no log gaps; always false */
-export function monthHasBillingGap(_month: string): boolean {
+export function monthHasBillingGap(): boolean {
   return false;
 }

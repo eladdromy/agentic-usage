@@ -192,6 +192,9 @@ async function executeProjectSyncJob(
 }
 
 export function getActiveProjectSyncJob(): ProjectSyncBackgroundJob | null {
+  if (!activeJob || activeJob.status !== "running") {
+    return null;
+  }
   return activeJob;
 }
 

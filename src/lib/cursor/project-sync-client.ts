@@ -116,20 +116,26 @@ async function pollBackgroundSyncJob(
   onMonthChange: (month: string, state: ProjectSyncMonthState) => void,
 ): Promise<void> {
   let lastSnapshot = "";
+  let sawRunning = false;
 
   while (true) {
     const job = await fetchBackgroundSyncJob();
-    if (!job || job.id !== jobId) break;
 
-    const snapshot = JSON.stringify(job.months);
-    if (snapshot !== lastSnapshot) {
-      lastSnapshot = snapshot;
-      for (const month of job.months) {
-        onMonthChange(month.month, month);
+    if (job?.id === jobId) {
+      sawRunning = job.status === "running" || sawRunning;
+
+      const snapshot = JSON.stringify(job.months);
+      if (snapshot !== lastSnapshot) {
+        lastSnapshot = snapshot;
+        for (const month of job.months) {
+          onMonthChange(month.month, month);
+        }
       }
-    }
 
-    if (job.status !== "running") {
+      if (job.status !== "running") {
+        break;
+      }
+    } else if (sawRunning) {
       break;
     }
 

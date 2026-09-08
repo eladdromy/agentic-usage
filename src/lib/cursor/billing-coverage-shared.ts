@@ -288,6 +288,16 @@ export function buildUploadedRangesFromImportSpans(
   );
 }
 
+/** Single export link when uploads form one contiguous span; null when disjoint. */
+export function buildExportAllFromUploadedRanges(
+  uploadedRanges: BillingExportAll[],
+  fallback: BillingExportAll | null = null,
+): BillingExportAll | null {
+  if (uploadedRanges.length === 1) return uploadedRanges[0]!;
+  if (uploadedRanges.length === 0) return fallback;
+  return null;
+}
+
 export function buildBillingCoverageFromImports(
   imports: BillingCoveragePayload["imports"],
   today: string = utcToday(),

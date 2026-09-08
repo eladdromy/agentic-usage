@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CircleCheck,
   CircleX,
@@ -178,29 +178,31 @@ export function ProjectSyncPanel({
 }) {
   const [open, setOpen] = useState(false);
   const [months, setMonths] = useState<ProjectSyncMonthState[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedRefreshKey, setLoadedRefreshKey] = useState<number | null>(null);
   const [vscdbAvailable, setVscdbAvailable] = useState(true);
-
-  const refresh = useCallback(async () => {
-    const payload = await fetchProjectSyncMonths();
-    setVscdbAvailable(payload.vscdbAvailable);
-    setMonths(idleProjectSyncMonths(payload));
-  }, []);
+  const loading = loadedRefreshKey !== refreshKey;
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    refresh()
-      .catch(() => {
-        if (!cancelled) setMonths([]);
+
+    void fetchProjectSyncMonths()
+      .then((payload) => {
+        if (cancelled) return;
+        setVscdbAvailable(payload.vscdbAvailable);
+        setMonths(idleProjectSyncMonths(payload));
+        setLoadedRefreshKey(refreshKey);
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+      .catch(() => {
+        if (!cancelled) {
+          setMonths([]);
+          setLoadedRefreshKey(refreshKey);
+        }
       });
+
     return () => {
       cancelled = true;
     };
-  }, [refresh, refreshKey]);
+  }, [refreshKey]);
 
   const summary = useMemo(
     () => summarizeProjectSyncButton(months, { syncing, loading }),

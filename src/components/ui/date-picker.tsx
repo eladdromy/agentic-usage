@@ -179,11 +179,13 @@ export function CustomRangePopover({
   const [draftFrom, setDraftFrom] = React.useState(initialFrom);
   const [draftTo, setDraftTo] = React.useState(initialTo);
 
-  React.useEffect(() => {
-    if (!open) return;
-    setDraftFrom(initialFrom);
-    setDraftTo(initialTo);
-  }, [initialFrom, initialTo, open]);
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setDraftFrom(initialFrom);
+      setDraftTo(initialTo);
+    }
+    onOpenChange(nextOpen);
+  }
 
   const draftFromDate = dateParamToDate(draftFrom);
   const draftToDate = dateParamToDate(draftTo);
@@ -193,7 +195,7 @@ export function CustomRangePopover({
       : undefined;
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverContent anchor={anchor} align="start" className="w-auto gap-0 p-0">
         <Calendar
           mode="range"
