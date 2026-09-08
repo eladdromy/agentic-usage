@@ -113,11 +113,56 @@ function attributeWithContext(
 
 export type BillingAttributionContext = AttributionContext;
 
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
 /** Build once per attach run, then reuse for every billing row. */
 export function createBillingAttributionContext(
   globalBubbles: readonly GlobalBubbleStub[],
 ): BillingAttributionContext | null {
   return buildContext(globalBubbles);
+}
+
+/** Yields while building so sync polls can observe progress during large months. */
+export async function createBillingAttributionContextAsync(
+  globalBubbles: readonly GlobalBubbleStub[],
+): Promise<BillingAttributionContext | null> {
+  if (globalBubbles.length === 0) return null;
+
+  const composerUPs = new Map<string, number[]>();
+  const agentTimes: number[] = [];
+  const agentCids: string[] = [];
+
+  for (let index = 0; index < globalBubbles.length; index++) {
+    const bubble = globalBubbles[index]!;
+    if (bubble.bubbleType === 1) {
+      let arr = composerUPs.get(bubble.composerId);
+      if (!arr) {
+        arr = [];
+        composerUPs.set(bubble.composerId, arr);
+      }
+      arr.push(bubble.createdAtSec);
+    } else {
+      agentTimes.push(bubble.createdAtSec);
+      agentCids.push(bubble.composerId);
+    }
+
+    if ((index + 1) % 5000 === 0) {
+      await yieldEventLoop();
+    }
+  }
+
+  const composerEntries = [...composerUPs.entries()];
+  for (let sorted = 0; sorted < composerEntries.length; sorted++) {
+    composerEntries[sorted]![1].sort((a, b) => a - b);
+    if ((sorted + 1) % 100 === 0) {
+      await yieldEventLoop();
+    }
+  }
+
+  if (composerUPs.size === 0) return null;
+  return { composerUPs, agentTimes, agentCids };
 }
 
 export function attributeBillingEventWithContext(

@@ -160,7 +160,7 @@ function ProjectSyncDetails({
 
         {syncing ? (
           <p className="text-xs text-muted-foreground" aria-live="polite">
-            Syncing projects…
+            Sync in progress — see the dialog.
           </p>
         ) : null}
       </SettingsDialogSection>

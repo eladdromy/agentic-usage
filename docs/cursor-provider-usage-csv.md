@@ -44,17 +44,56 @@ CSV upload → store billing rows → scan vscdb in CSV date window only
 | `no_composer_match` | No composer matched for the row timestamp |
 | `no_project_path` | Composer has no workspace / folder path |
 
-Re-run attribution without re-uploading: `POST /api/cursor/attach-projects` (optionally `?month=YYYY-MM` for one month). `GET /api/cursor/attach-projects` lists per-month pending row counts for the project sync UI.
+Re-run attribution without re-uploading: `POST /api/cursor/attach-projects` (optionally `?month=YYYY-MM` for one month). `GET /api/cursor/attach-projects` lists per-month pending row counts and `bubbleIndexReady` for the project sync UI.
 
-After CSV upload, project sync runs **in the background** (one month at a time, sequentially). Only billing months touched by the uploaded file’s date span are synced — e.g. a CSV covering 2026-09-08 syncs September only. Progress appears in a bottom-right toast; the Settings project sync dialog is for status inspection only.
+### Upload + project sync UX
 
-Sync uses `POST /api/cursor/attach-projects/sync` (returns **202 immediately**) and polls `GET /api/cursor/attach-projects/sync` for progress — long work no longer holds an HTTP connection open, so navigation stays responsive in dev. `GET` returns `{ status: "idle" }` when no sync is running; completed jobs are not kept on the server.
+CSV upload is a **two-step wizard** in one dialog:
+
+1. **Upload** — pick and upload the usage-events file.
+2. **Link projects** — non-dismissible until sync finishes. Shows upload success, then progress.
+
+If the file has **no new rows** (`inserted === 0`), the dialog closes and a snackbar explains why (duplicates or empty file). Project sync is skipped.
+
+Manual sync (**Re-match projects**, **Sync now**) opens the same blocking modal at step 2 (no upload header). The modal is app-level so navigation does not hide in-progress sync. Re-match only lists months with pending or previously **unmatched** rows; prompt loading and subagent indexing are scoped to those rows’ timestamp window (not the full calendar month). Rows that fail again with the same reason skip redundant DB writes.
+
+Progress phases (poll `GET /api/cursor/attach-projects/sync`):
+
+| Field | Values |
+|-------|--------|
+| `phase` | `preparing` → `syncing` → `done` |
+| `preparingStep` | During `preparing`: `bubble_index` (if needed) → `workspace_scan` → `loading_prompts` |
+| `bubbleIndexReady` | Snapshot at job start; when `false`, the bubble-index prep step is shown |
+
+During `preparing`, the UI shows prep steps only (not billing months). Prompt loading for the billing date window runs in `loading_prompts`, then the match index is built from those bubbles before the month list appears. During `syncing`, months stay **Up next** until row matching begins; the counter then ticks `1/N`, `2/N`, … per row. **Done** dismisses the dialog/modal.
+
+After CSV upload, only billing months touched by the uploaded file’s date span are synced — e.g. a CSV covering 2026-09-08 syncs September only.
+
+Sync uses `POST /api/cursor/attach-projects/sync` (returns **202 immediately**) and polls `GET /api/cursor/attach-projects/sync` every 750ms. `GET` returns the **latest job regardless of status** (running _or_ finished), retained until the next sync replaces it, and `{ status: "idle" }` only when no sync has ever run. Retention matters because re-matching known-fail rows can finish in well under one poll interval (e.g. ~160ms for 123 rows) — if the completed job were dropped, the poller would never observe the final per-month result and would hang on stale "Up next" progress. The client stops polling as soon as it reads a non-`running` job (authoritative final matched/unmatched counts) or finds its job superseded.
+
+Settings **Project sync** panel is read-only status inspection (not a sync trigger).
 
 Per month, sync: loads Cursor `state.vscdb` prompts/bubbles for the **pending rows’ date window** in that month (not the full CSV span), matches each unattached CSV row to a composer → workspace path, and writes `project` / `composer_id` on billing rows. After upload, only **pending rows in the uploaded CSV date span** are processed (not the whole month or prior failures).
 
 Cursor stores bubbles in `cursorDiskKV` with a unique index on `key`. **`LIKE 'bubbleId:%'` forces a full-table scan** (SQLite cannot use the index); this app uses **`key >= 'bubbleId:' AND key < 'bubbleId;'`** plus a local `.data/cursor-bubble-index.db` sidecar (timestamp index) for full-range scans.
 
-**Upload / scoped attach fast path:** when the sidecar index is not ready, attach reads bubble stubs from **`composerData:{composerId}` header metadata** (indexed KV lookups per composer, ~hundreds of rows) instead of scanning every `bubbleId:` row (~90k+). Before the first month runs, background sync **builds the bubble index once** if missing. Workspace folders are always scanned for project paths (cached for the whole sync job).
+**Upload / scoped attach fast path:** when the sidecar index is not ready, attach reads bubble stubs from **`composerData:{composerId}` header metadata** (indexed KV lookups per composer, ~hundreds of rows) instead of scanning every `bubbleId:` row (~90k+). Before the first month runs, background sync **builds the bubble index once** if missing (`phase: preparing`), yielding to the event loop every 500 rows. Workspace folders are always scanned for project paths (cached for the whole sync job).
+
+### Where the work actually happens (prep vs per-month)
+
+The expensive work is **global and one-time**, so `preparing` does it once and every month reuses the result. This is why months flip to **done** almost instantly once the month list appears — the per-month step is a cheap lookup + DB write, not a fetch.
+
+| Built once in `preparing` | Passed to every month's attach |
+|---------------------------|-------------------------------|
+| Bubble index (`ensureCursorBubbleIndexSyncAsync`) — full ~90k-row scan, only when `bubbleIndexReady: false` | (index used implicitly by bubble loads) |
+| `composerProjects` (`loadComposerProjectMapAsync`, all workspaces) | `composerProjects` |
+| `preloadedBubbles` (`loadGlobalBubblesInRangeAsync` over the union date span) | `preloadedBubbles` |
+| `billingAttributionContext` (`createBillingAttributionContextAsync`) — the timestamp match index | `billingAttributionContext` |
+| Re-match only: `taskV2Dispatches` + `subagentParentProjects` (subagent → parent project roll-up) | same |
+
+`attachProjectsToBillingEvents` skips its own bubble load / context build whenever these are supplied (`billing-project-attach.ts`, `hasPreparedAttribution`). Per-row matching is an O(log n) binary search (`mostRecentUPWinner` / `tightBubbleWinner`), so ~123 rows resolve in ~150ms. Slicing this per month would only re-scan overlapping data and be slower — it is intentionally front-loaded into prep.
+
+**Re-match specifics** (`retryUnmatched: true`): `pendingOnly: false` (retries prior failures), `fastPath: false` (fuller matching incl. subagent roll-up), month scope = months with pending **or** unmatched rows. Rows that fail again with the **same** `project_unmatch_reason` skip redundant DB writes (`unchangedRetryFailure`).
 
 ## Model pricing
 
@@ -62,8 +101,9 @@ Token-based **API eq.** uses rates from [Cursor models & pricing](https://cursor
 
 | Property | Value |
 |----------|-------|
-| Storage | `.data/cursor-provider-usage.db` |
+| Storage | `.data/cursor-provider-usage.db` (data dir honors `AGENTIC_USAGE_DATA_DIR`) |
 | Tables | `provider_usage_events` (`project`, `composer_id`, `project_unmatch_reason`), `provider_usage_imports` (`date_from`, `date_to` per upload) |
+| Reset | `npm run reset:cursor` (`scripts/reset-cursor-data.sh`) deletes the billing DB + `cursor-bubble-index.db` sidecar to replay the upload/attach flow; keeps `agentic-usage.db`, `settings.json`, and the real Cursor `state.vscdb`. Restart the dev server after — it holds open SQLite handles. |
 | API | `POST /api/cursor/provider-usage/upload`, `POST /api/cursor/attach-projects` (single month), `POST/GET /api/cursor/attach-projects/sync` (background multi-month) |
 | Dedup | `row_hash` per CSV row |
 
@@ -100,8 +140,19 @@ Cursor plan tier auto-detection reads `state.vscdb` → `ItemTable` profile keys
 - `src/lib/cursor/provider-usage-db.ts` — SQLite store + monthly aggregates
 - `src/lib/cursor/billing-coverage.ts` — CSV date range + export URLs
 - `src/lib/cursor/cursor-subagent-spawn.ts` — `task_v2` child → parent project roll-up
-- `src/lib/cursor/billing-project-attach.ts` — post-upload project attach job
-- `src/lib/cursor/billing-event-attribution.ts` — bubble → composer matching
-- `src/lib/cursor/vscdb-bubbles.ts` — scoped bubble load for billing window
+- `src/lib/cursor/billing-project-attach.ts` — per-month row matching loop + `onProgress`; reuses prep-built shared data
+- `src/lib/cursor/project-sync-background.ts` — background job orchestration, prep phases, prep→per-month data handoff
+- `src/lib/cursor/project-sync-target-months.ts` — which months/rows a run targets (`monthNeedsProjectSync`, `rowsToMatchForMonth`)
+- `src/lib/cursor/project-sync-client.ts` — client polling (reads latest job incl. finished; never hangs on sub-poll-interval jobs)
+- `src/lib/cursor/project-sync-types.ts` — job / month / phase types
+- `src/lib/cursor/cursor-bubble-index.ts` — `.data/cursor-bubble-index.db` sidecar build + range queries
+- `src/app/api/cursor/attach-projects/sync/route.ts` — `POST` starts job (202), `GET` returns latest job (running or finished)
+- `src/components/cursor/csv-upload-dialog.tsx` — upload + sync wizard
+- `src/components/cursor/project-sync-provider.tsx` — app-level sync modal orchestration
+- `src/components/cursor/project-sync-modal.tsx` / `project-sync-progress-panel.tsx` — blocking modal + prep/sync progress UI
+- `src/components/cursor/project-sync-panel.tsx` — read-only Settings status inspector
+- `src/lib/cursor/billing-event-attribution.ts` — bubble → composer matching (timestamp context + winners)
+- `src/lib/cursor/vscdb-bubbles.ts` — scoped bubble / `task_v2` load for billing window
 - `src/lib/cursor/project-attribution.ts` — composer → workspace path map
 - `src/lib/pricing/cursor-usage-cost.ts` — format/estimate row cost
+- `scripts/reset-cursor-data.sh` — wipe app billing DB + bubble index to replay the flow

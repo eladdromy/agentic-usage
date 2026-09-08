@@ -19,12 +19,36 @@ export type ProjectSyncMonthState = ProjectSyncMonthInfo & {
   status: ProjectSyncMonthStatus;
   matched?: number;
   unmatched?: number;
+  /** Rows processed so far while status is in_progress. */
+  processedRows?: number;
+  /** Rows this pass will attempt (pending + unmatched on re-match). */
+  rowsToMatch?: number;
   error?: string;
 };
 
+export type ProjectSyncPhase = "preparing" | "syncing" | "done";
+
+export type ProjectSyncPreparingStep =
+  | "bubble_index"
+  | "workspace_scan"
+  | "loading_prompts";
+
 export type ProjectSyncMonthsPayload = {
   vscdbAvailable: boolean;
+  bubbleIndexReady: boolean;
   months: ProjectSyncMonthInfo[];
+};
+
+export type ProjectSyncBackgroundJob = {
+  id: string;
+  status: "running" | "done" | "error";
+  phase: ProjectSyncPhase;
+  preparingStep?: ProjectSyncPreparingStep;
+  bubbleIndexReady: boolean;
+  months: ProjectSyncMonthState[];
+  error?: string;
+  startedAt: number;
+  finishedAt?: number;
 };
 
 export type ProjectAttachMonthResult = {

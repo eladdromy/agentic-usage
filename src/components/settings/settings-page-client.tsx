@@ -14,11 +14,7 @@ import {
 
 import { BillingGapList } from "@/components/cursor/billing-gap-list";
 import { ProjectSyncPanel } from "@/components/cursor/project-sync-panel";
-import { startProjectSyncRun } from "@/components/cursor/project-sync-run";
-import {
-  showCsvUploadToast,
-  waitForUploadToast,
-} from "@/lib/cursor/csv-upload-feedback";
+import { useProjectSync } from "@/components/cursor/project-sync-provider";
 import { UnmatchedBillingList } from "@/components/cursor/unmatched-billing-list";
 import { CursorCsvUploadDialog } from "@/components/cursor/csv-upload-dialog";
 import { SettingsPageContentSkeleton } from "@/components/layout/page-loading-skeletons";
@@ -166,6 +162,7 @@ export function SettingsPageClient() {
     activeHarness: contextHarness,
     triggerSync,
   } = useRouteSync();
+  const { startProjectSync, syncing: projectSyncing } = useProjectSync();
   const showClaudeSettings =
     contextHarness === "claude" || contextHarness === "all";
   const showCursorSettings =
@@ -179,7 +176,6 @@ export function SettingsPageClient() {
   const [message, setMessage] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [projectSyncRefreshKey, setProjectSyncRefreshKey] = useState(0);
-  const [projectSyncing, setProjectSyncing] = useState(false);
   const [billingCoverage, setBillingCoverage] =
     useState<BillingCoveragePayload | null>(null);
 
@@ -266,17 +262,14 @@ export function SettingsPageClient() {
     };
   }, [syncVersion, routeSyncing, loadBillingCoverage]);
 
-  async function handleCsvUploaded(result: ProviderUsageUploadResult) {
-    const outcome = showCsvUploadToast(result);
+  async function handleCsvUploaded(_result: ProviderUsageUploadResult) {
     await loadBillingCoverage();
     await loadProfile();
-    if (outcome === "duplicate") return;
+  }
 
-    await waitForUploadToast();
-    void startProjectSyncRun({
-      dateFrom: result.dateFrom,
-      dateTo: result.dateTo,
-      onSyncingChange: setProjectSyncing,
+  function handleRematchProjects() {
+    void startProjectSync({
+      retryUnmatched: true,
       onComplete: () => {
         setProjectSyncRefreshKey((k) => k + 1);
         void loadBillingCoverage();
@@ -284,15 +277,9 @@ export function SettingsPageClient() {
     });
   }
 
-  function handleRematchProjects() {
-    void startProjectSyncRun({
-      retryUnmatched: true,
-      onSyncingChange: setProjectSyncing,
-      onComplete: () => {
-        setProjectSyncRefreshKey((k) => k + 1);
-        void loadBillingCoverage();
-      },
-    });
+  function handleSyncComplete() {
+    setProjectSyncRefreshKey((k) => k + 1);
+    void loadBillingCoverage();
   }
 
   async function saveSyncSettings() {
@@ -646,6 +633,7 @@ export function SettingsPageClient() {
                 open={uploadOpen}
                 onOpenChange={setUploadOpen}
                 onUploaded={handleCsvUploaded}
+                onSyncComplete={handleSyncComplete}
               />
             </HarnessSettingsCard>
           </TabsContent>

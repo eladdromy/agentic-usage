@@ -102,3 +102,35 @@ export function buildSubagentParentProjectIndex(
 
   return childToParentProject;
 }
+
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+/** Yields periodically so UI polls can observe prep progress on large months. */
+export async function buildSubagentParentProjectIndexAsync(
+  dispatches: readonly TaskV2DispatchBubble[],
+  resolveProject: (composerId: string) => string | null,
+): Promise<Map<string, string>> {
+  const childToParentProject = new Map<string, string>();
+
+  for (let index = 0; index < dispatches.length; index++) {
+    const dispatch = dispatches[index]!;
+    const parentProject = resolveProject(dispatch.parentComposerId);
+    if (!parentProject) continue;
+
+    for (const childId of extractSpawnedSubagentComposerIdsFromRaw(
+      dispatch.raw,
+    )) {
+      if (!childToParentProject.has(childId)) {
+        childToParentProject.set(childId, parentProject);
+      }
+    }
+
+    if ((index + 1) % 200 === 0) {
+      await yieldEventLoop();
+    }
+  }
+
+  return childToParentProject;
+}

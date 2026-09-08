@@ -7,6 +7,7 @@ import { BarChart3, FolderKanban, LoaderCircle, Receipt, Settings } from "lucide
 
 import { HarnessSelect } from "@/components/layout/harness-select";
 import { RouteSyncProvider, useRouteSync } from "@/components/layout/route-sync";
+import { ProjectSyncProvider } from "@/components/cursor/project-sync-provider";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -144,10 +145,12 @@ export function AppShell({
   return (
     <TooltipProvider>
       <RouteSyncProvider initialActiveHarness={initialActiveHarness}>
-        <Suspense fallback={<div className="min-h-screen bg-background" />}>
-          <AppShellFrame>{children}</AppShellFrame>
-        </Suspense>
-        <Toaster richColors closeButton />
+        <ProjectSyncProvider>
+          <Suspense fallback={<div className="min-h-screen bg-background" />}>
+            <AppShellFrame>{children}</AppShellFrame>
+          </Suspense>
+          <Toaster richColors closeButton />
+        </ProjectSyncProvider>
       </RouteSyncProvider>
     </TooltipProvider>
   );

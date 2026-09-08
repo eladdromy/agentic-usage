@@ -83,45 +83,65 @@ function listWorkspaceStateDirs(): { id: string }[] {
 /** Per-workspace `composer.composerData` selected/focused composer ids (Agentic_Usage step 4). */
 function loadFromWorkspaceComposerData(out: Map<string, string>): void {
   for (const { id: workspaceId } of listWorkspaceStateDirs()) {
-    const projectPath = readWorkspaceProjectPath(workspaceId);
-    if (!projectPath) continue;
+    loadWorkspaceComposerDataEntry(out, workspaceId);
+  }
+}
 
-    const wsDbPath = path.join(
-      getCursorUserDir(),
-      "workspaceStorage",
-      workspaceId,
-      "state.vscdb",
-    );
-    if (!cursorVscdbExists(wsDbPath)) continue;
+function loadWorkspaceComposerDataEntry(
+  out: Map<string, string>,
+  workspaceId: string,
+): void {
+  const projectPath = readWorkspaceProjectPath(workspaceId);
+  if (!projectPath) return;
 
-    try {
-      const db = getReadonlyCursorDatabase(wsDbPath);
-      const row = db
-        .prepare(`SELECT CAST(value AS TEXT) AS value FROM ItemTable WHERE key = ?`)
-        .get("composer.composerData") as { value: string } | undefined;
-      if (!row?.value) continue;
+  const wsDbPath = path.join(
+    getCursorUserDir(),
+    "workspaceStorage",
+    workspaceId,
+    "state.vscdb",
+  );
+  if (!cursorVscdbExists(wsDbPath)) return;
 
-      const parsed = JSON.parse(row.value) as {
-        selectedComposerIds?: unknown;
-        lastFocusedComposerIds?: unknown;
-      };
-      const composerIds = new Set<string>();
-      for (const list of [
-        parsed.selectedComposerIds,
-        parsed.lastFocusedComposerIds,
-      ]) {
-        if (!Array.isArray(list)) continue;
-        for (const cid of list) {
-          const id = strOrNull(cid);
-          if (id) composerIds.add(id);
-        }
+  try {
+    const db = getReadonlyCursorDatabase(wsDbPath);
+    const row = db
+      .prepare(`SELECT CAST(value AS TEXT) AS value FROM ItemTable WHERE key = ?`)
+      .get("composer.composerData") as { value: string } | undefined;
+    if (!row?.value) return;
+
+    const parsed = JSON.parse(row.value) as {
+      selectedComposerIds?: unknown;
+      lastFocusedComposerIds?: unknown;
+    };
+    const composerIds = new Set<string>();
+    for (const list of [parsed.selectedComposerIds, parsed.lastFocusedComposerIds]) {
+      if (!Array.isArray(list)) continue;
+      for (const cid of list) {
+        const id = strOrNull(cid);
+        if (id) composerIds.add(id);
       }
+    }
 
-      for (const composerId of composerIds) {
-        mergeComposerProjectPath(out, composerId, projectPath);
-      }
-    } catch {
-      // skip unreadable workspace db
+    for (const composerId of composerIds) {
+      mergeComposerProjectPath(out, composerId, projectPath);
+    }
+  } catch {
+    // skip unreadable workspace db
+  }
+}
+
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+async function loadFromWorkspaceComposerDataAsync(
+  out: Map<string, string>,
+): Promise<void> {
+  const workspaces = listWorkspaceStateDirs();
+  for (let index = 0; index < workspaces.length; index++) {
+    loadWorkspaceComposerDataEntry(out, workspaces[index]!.id);
+    if ((index + 1) % 5 === 0) {
+      await yieldEventLoop();
     }
   }
 }
@@ -267,6 +287,33 @@ export function loadComposerProjectMap(
     loadFromComposerHeadersTable(db, out);
     if (options?.scanWorkspaces !== false) {
       loadFromWorkspaceComposerData(out);
+    }
+  } catch {
+    return out;
+  }
+
+  return out;
+}
+
+/** Async variant — yields while scanning workspace folders (used during project sync prep). */
+export async function loadComposerProjectMapAsync(
+  dbPath: string,
+  options?: { scanWorkspaces?: boolean },
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!cursorVscdbExists(dbPath)) {
+    if (options?.scanWorkspaces !== false) {
+      await loadFromWorkspaceComposerDataAsync(out);
+    }
+    return out;
+  }
+
+  try {
+    const db = getReadonlyCursorDatabase(dbPath);
+    loadFromItemTableHeadersBlob(db, out);
+    loadFromComposerHeadersTable(db, out);
+    if (options?.scanWorkspaces !== false) {
+      await loadFromWorkspaceComposerDataAsync(out);
     }
   } catch {
     return out;

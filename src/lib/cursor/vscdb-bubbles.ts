@@ -14,6 +14,7 @@ import {
   BUBBLE_KEY_MIN,
   isCursorBubbleIndexReady,
   loadGlobalBubblesForAttach,
+  loadGlobalBubblesForAttachAsync,
   queryIndexedBubbleKeysInRange,
 } from "@/lib/cursor/cursor-bubble-index";
 import {
@@ -24,6 +25,10 @@ import {
 import { readSettings } from "@/lib/profile/settings";
 
 const BUFFER_SEC = 60;
+
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
 
 /** Load user + agent bubbles from global vscdb for a billing date window only. */
 export function loadGlobalBubblesInRange(
@@ -39,6 +44,21 @@ export function loadGlobalBubblesInRange(
   if (!cursorVscdbExists(resolved)) return [];
 
   return loadGlobalBubblesForAttach(fromSec, toSec, resolved, options);
+}
+
+export async function loadGlobalBubblesInRangeAsync(
+  fromSec: number,
+  toSec: number,
+  dbPath?: string,
+  options?: { fastPath?: boolean },
+): Promise<GlobalBubbleStub[]> {
+  const resolved =
+    dbPath ??
+    getResolvedVscdbPath(readSettings().vscdbPathOverride ?? null);
+
+  if (!cursorVscdbExists(resolved)) return [];
+
+  return loadGlobalBubblesForAttachAsync(fromSec, toSec, resolved, options);
 }
 
 export function resolveVscdbPathForAttribution(): string {
@@ -134,6 +154,106 @@ export function loadTaskV2DispatchBubbles(
         parentComposerId,
         raw: row.value,
       });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+export async function loadTaskV2DispatchBubblesAsync(
+  dbPath?: string,
+  range?: { fromSec: number; toSec: number },
+): Promise<TaskV2DispatchBubble[]> {
+  const resolved =
+    dbPath ??
+    getResolvedVscdbPath(readSettings().vscdbPathOverride ?? null);
+
+  if (!cursorVscdbExists(resolved)) return [];
+
+  try {
+    const db = getReadonlyCursorDatabase(resolved);
+    if (!cursorDiskKvTableExists(db)) return [];
+
+    const roughFrom =
+      range != null ? Math.floor(range.fromSec - BUFFER_SEC) : null;
+    const roughTo = range != null ? Math.ceil(range.toSec + BUFFER_SEC) : null;
+
+    if (
+      roughFrom != null &&
+      roughTo != null &&
+      isCursorBubbleIndexReady(resolved)
+    ) {
+      const keys = queryIndexedBubbleKeysInRange(roughFrom, roughTo, resolved);
+      const getKv = db.prepare(
+        `SELECT key, CAST(value AS TEXT) AS value
+         FROM ${CURSOR_DISK_KV_TABLE}
+         WHERE key = ?`,
+      );
+
+      const out: TaskV2DispatchBubble[] = [];
+      for (let index = 0; index < keys.length; index++) {
+        const key = keys[index]!;
+        const row = getKv.get(key) as { key: string; value: string } | undefined;
+        if (!row?.value.includes('"name":"task_v2"')) continue;
+
+        const parentComposerId = parseComposerIdFromBubbleKey(row.key);
+        if (!parentComposerId) continue;
+        if (extractSpawnedSubagentComposerIdsFromRaw(row.value).length === 0) {
+          continue;
+        }
+        out.push({
+          key: row.key,
+          parentComposerId,
+          raw: row.value,
+        });
+        if ((index + 1) % 500 === 0) await yieldEventLoop();
+      }
+      return out;
+    }
+
+    const select = db.prepare(
+      `SELECT key, CAST(value AS TEXT) AS value
+       FROM ${CURSOR_DISK_KV_TABLE}
+       WHERE key >= ?
+         AND key < ?`,
+    );
+
+    const out: TaskV2DispatchBubble[] = [];
+    let scanned = 0;
+    for (const row of select.iterate(BUBBLE_KEY_MIN, BUBBLE_KEY_MAX) as Iterable<{
+      key: string;
+      value: string;
+    }>) {
+      scanned += 1;
+      if (!row.value.includes('"name":"task_v2"')) {
+        if (scanned % 2000 === 0) await yieldEventLoop();
+        continue;
+      }
+
+      if (roughFrom != null && roughTo != null) {
+        const createdAtSec = parseBubbleCreatedAtSecFromRaw(row.value);
+        if (
+          createdAtSec == null ||
+          createdAtSec < roughFrom ||
+          createdAtSec > roughTo
+        ) {
+          if (scanned % 2000 === 0) await yieldEventLoop();
+          continue;
+        }
+      }
+
+      const parentComposerId = parseComposerIdFromBubbleKey(row.key);
+      if (!parentComposerId) continue;
+      if (extractSpawnedSubagentComposerIdsFromRaw(row.value).length === 0) {
+        continue;
+      }
+      out.push({
+        key: row.key,
+        parentComposerId,
+        raw: row.value,
+      });
+      if (scanned % 2000 === 0) await yieldEventLoop();
     }
     return out;
   } catch {
