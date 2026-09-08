@@ -183,6 +183,35 @@ function composerActivityBounds(raw: string): {
   }
 }
 
+/** Earliest local prompt timestamp via composerData header metadata (no bubble scan). */
+export function queryFirstLocalActivitySecViaComposerHeaders(
+  vscdbPath: string,
+): number | null {
+  const db = getReadonlyCursorDatabase(vscdbPath);
+  if (!cursorDiskKvTableExists(db)) return null;
+
+  const composerIds = listComposerIds(db);
+  if (composerIds.length === 0) return null;
+
+  const getKv = db.prepare(
+    `SELECT CAST(value AS TEXT) AS value FROM ${CURSOR_DISK_KV_TABLE} WHERE key = ?`,
+  );
+
+  let minSec: number | null = null;
+  for (const composerId of composerIds) {
+    const row = getKv.get(`composerData:${composerId}`) as
+      | { value: string }
+      | undefined;
+    if (!row?.value) continue;
+
+    const { minSec: composerMin } = composerActivityBounds(row.value);
+    if (composerMin == null) continue;
+    minSec = minSec == null ? composerMin : Math.min(minSec, composerMin);
+  }
+
+  return minSec;
+}
+
 /**
  * Fast path: read bubble stubs from composerData header metadata (indexed KV
  * lookups per composer) instead of scanning every bubbleId row.

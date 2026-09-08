@@ -1,5 +1,7 @@
 # Cursor provider usage CSV
 
+**Related docs:** [future-harnesses-codex-grok.md](./future-harnesses-codex-grok.md) (Codex & Grok use local session logs instead of CSV export)
+
 Cursor **usage-events** CSV exports are the sole billing source for the Cursor harness. **API eq.** uses the billed on-demand amount when present; otherwise it shows a token-based estimate (prefixed with `~`).
 
 ## Spend columns (Spend Logs)
@@ -117,7 +119,7 @@ Token-based **API eq.** uses rates from [Cursor models & pricing](https://cursor
 |----------|-------|
 | Storage | `.data/cursor-provider-usage.db` (data dir honors `AGENTIC_USAGE_DATA_DIR`) |
 | Tables | `provider_usage_events` (`project`, `composer_id`, `project_unmatch_reason`), `provider_usage_imports` (`date_from`, `date_to` per upload) |
-| Reset | `npm run reset:cursor` (`scripts/reset-cursor-data.sh`) deletes the billing DB + `cursor-bubble-index.db` sidecar to replay the upload/attach flow; keeps `agentic-usage.db`, `settings.json`, and the real Cursor `state.vscdb`. Restart the dev server after — it holds open SQLite handles. |
+| Reset | `npm run reset:cursor` (`scripts/reset-cursor-data.sh`) deletes the billing DB + `cursor-bubble-index.db` sidecar and resets Cursor onboarding flags in `settings.json` (`onboardingCompletedAt`, `onboardingCursor*`, `planOverrides.cursor`); keeps `agentic-usage.db` and path overrides. Restart the dev server after — it holds open SQLite handles. If Claude indexed data is also empty, the app returns to `/setup`. |
 | API | `POST /api/cursor/provider-usage/upload`, `POST /api/cursor/attach-projects` (single month), `POST/GET /api/cursor/attach-projects/sync` (background multi-month) |
 | Dedup | `row_hash` per CSV row |
 

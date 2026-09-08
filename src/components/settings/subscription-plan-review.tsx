@@ -441,23 +441,21 @@ export function SubscriptionPlanReview({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SettingsBlockTitle title="Monthly plans" description={planDescription} />
-        {state.years.length > 0 ? (
-          <Tabs
-            value={String(state.activeYear)}
-            onValueChange={(value) => void switchYear(Number.parseInt(value ?? "", 10))}
-          >
-            <TabsList variant="line" className="h-9 gap-1">
-              {state.years.map((y) => (
-                <TabsTrigger key={y} value={String(y)} className="px-3">
-                  {y}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        ) : null}
-      </div>
+      <SettingsBlockTitle title="Monthly plans" description={planDescription} />
+      {state.years.length > 0 ? (
+        <Tabs
+          value={String(state.activeYear)}
+          onValueChange={(value) => void switchYear(Number.parseInt(value ?? "", 10))}
+        >
+          <TabsList variant="line" className="h-9 justify-start gap-1">
+            {state.years.map((y) => (
+              <TabsTrigger key={y} value={String(y)} className="px-3">
+                {y}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      ) : null}
 
       {yearLoading ? (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
@@ -470,92 +468,94 @@ export function SubscriptionPlanReview({
           monthly plans here.
         </p>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border/60 hover:bg-transparent">
-              <TableHead>Month</TableHead>
-              <TableHead>Plan tier</TableHead>
-              <TableHead className="w-32">Base $/mo</TableHead>
-              <TableHead className="min-w-64">Plan label</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {draft.months.map((month) => {
-              const row = draft.rows[month] ?? {
-                tierId: AUTO_PLAN_TIER_ID,
-                label: "",
-                monthlyUsd: "",
-              };
-              const isCustom = row.tierId === CUSTOM_PLAN_TIER_ID;
-              return (
-                <TableRow key={month} className="border-border/60">
-                  <TableCell className="font-medium whitespace-normal">
-                    {monthLabel(month)}
-                  </TableCell>
-                  <TableCell className="whitespace-normal">
-                    <Select
-                      value={row.tierId}
-                      onValueChange={(value) =>
-                        handleTierChange(month, value ?? AUTO_PLAN_TIER_ID)
-                      }
-                    >
-                      <SelectTrigger className={settingsSelectTriggerClass}>
-                        {tierTriggerLabel(
-                          row.tierId,
-                          row,
-                          state.tiers,
-                          state.detectedPlan,
-                        )}
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={AUTO_PLAN_TIER_ID}>
-                          {state.detectedPlan
-                            ? `Auto (${state.detectedPlan.label} · $${state.detectedPlan.monthlyUsd}/mo)`
-                            : "Auto-detected"}
-                        </SelectItem>
-                        {state.tiers.map((tier) => (
-                          <SelectItem key={tier.id} value={tier.id}>
-                            {formatPlanTierOptionLabel(tier)}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value={CUSTOM_PLAN_TIER_ID}>Custom</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="whitespace-normal">
-                    {isCustom ? (
-                      <Input
-                        className="w-32"
-                        value={row.monthlyUsd}
-                        onChange={(e) =>
-                          updateRow(month, { monthlyUsd: e.target.value })
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-white shadow-sm dark:bg-card">
+          <Table>
+            <TableHeader className="bg-muted/40">
+              <TableRow className="border-border/60 hover:bg-transparent">
+                <TableHead className="px-4">Month</TableHead>
+                <TableHead className="px-4">Plan tier</TableHead>
+                <TableHead className="w-32 px-4">Base $/mo</TableHead>
+                <TableHead className="min-w-64 px-4">Plan label</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {draft.months.map((month) => {
+                const row = draft.rows[month] ?? {
+                  tierId: AUTO_PLAN_TIER_ID,
+                  label: "",
+                  monthlyUsd: "",
+                };
+                const isCustom = row.tierId === CUSTOM_PLAN_TIER_ID;
+                return (
+                  <TableRow key={month} className="border-border/60 hover:bg-muted/20">
+                    <TableCell className="px-4 font-medium whitespace-normal">
+                      {monthLabel(month)}
+                    </TableCell>
+                    <TableCell className="px-4 whitespace-normal">
+                      <Select
+                        value={row.tierId}
+                        onValueChange={(value) =>
+                          handleTierChange(month, value ?? AUTO_PLAN_TIER_ID)
                         }
-                        inputMode="decimal"
-                        autoComplete="off"
-                        placeholder="Amount"
-                      />
-                    ) : (
-                      <span>{formatBaseUsd(row.monthlyUsd)}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="whitespace-normal">
-                    {isCustom ? (
-                      <Input
-                        className="w-full min-w-48 max-w-64"
-                        value={row.label}
-                        onChange={(e) => updateRow(month, { label: e.target.value })}
-                        autoComplete="off"
-                        placeholder="e.g. Enterprise deal"
-                      />
-                    ) : (
-                      <span>{row.label.trim() || "—"}</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                      >
+                        <SelectTrigger className={settingsSelectTriggerClass}>
+                          {tierTriggerLabel(
+                            row.tierId,
+                            row,
+                            state.tiers,
+                            state.detectedPlan,
+                          )}
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={AUTO_PLAN_TIER_ID}>
+                            {state.detectedPlan
+                              ? `Auto (${state.detectedPlan.label} · $${state.detectedPlan.monthlyUsd}/mo)`
+                              : "Auto-detected"}
+                          </SelectItem>
+                          {state.tiers.map((tier) => (
+                            <SelectItem key={tier.id} value={tier.id}>
+                              {formatPlanTierOptionLabel(tier)}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value={CUSTOM_PLAN_TIER_ID}>Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="px-4 whitespace-normal">
+                      {isCustom ? (
+                        <Input
+                          className="w-32 bg-background"
+                          value={row.monthlyUsd}
+                          onChange={(e) =>
+                            updateRow(month, { monthlyUsd: e.target.value })
+                          }
+                          inputMode="decimal"
+                          autoComplete="off"
+                          placeholder="Amount"
+                        />
+                      ) : (
+                        <span>{formatBaseUsd(row.monthlyUsd)}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="px-4 whitespace-normal">
+                      {isCustom ? (
+                        <Input
+                          className="w-full min-w-48 max-w-64 bg-background"
+                          value={row.label}
+                          onChange={(e) => updateRow(month, { label: e.target.value })}
+                          autoComplete="off"
+                          placeholder="e.g. Enterprise deal"
+                        />
+                      ) : (
+                        <span>{row.label.trim() || "—"}</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <SettingsActions className={mode === "onboarding" ? "justify-end" : undefined}>

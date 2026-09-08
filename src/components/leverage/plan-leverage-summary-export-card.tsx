@@ -2,6 +2,7 @@
 
 import { forwardRef } from "react";
 
+import { AgenticUsageAttribution } from "@/components/brand/agentic-usage-attribution";
 import { HarnessLogo } from "@/components/layout/harness-logo";
 import { PlanSpendCell } from "@/components/leverage/plan-spend-cell";
 import { PlanLeverageMonthlySparkline } from "@/components/leverage/plan-leverage-sparkline";
@@ -191,12 +192,7 @@ export const PlanLeverageSummaryExportCard = forwardRef<
           </Surface>
         ) : null}
 
-        <p className="text-right text-xs text-muted-foreground">
-          created by{" "}
-          <span className="text-blue-600">
-            https://github.com/eladdromy/agentic-usage
-          </span>
-        </p>
+        <AgenticUsageAttribution />
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { BarChart3, FolderKanban, LoaderCircle, Receipt, Settings } from "lucide-react";
 
 import { CursorSetupBannerGate } from "@/components/cursor/cursor-setup-banner-gate";
+import { AppBrand } from "@/components/brand/app-brand";
 import { HarnessSelect } from "@/components/layout/harness-select";
 import { RouteSyncProvider, useRouteSync } from "@/components/layout/route-sync";
 import { ProjectSyncProvider } from "@/components/cursor/project-sync-provider";
@@ -68,12 +69,7 @@ function AppShellFrame({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/75 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-6">
           <div className="flex items-center gap-6">
-            <Link
-              href="/raw-spend"
-              className="text-base font-semibold tracking-tight transition-opacity hover:opacity-80"
-            >
-              Agentic Usage
-            </Link>
+            <AppBrand href="/raw-spend" />
             <HarnessSelect />
             <nav className="hidden items-center gap-1 sm:flex">
               {NAV_ITEMS.map(({ href, label, icon: Icon }) => {

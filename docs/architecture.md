@@ -1,6 +1,6 @@
 # Architecture
 
-Agentic Usage is a **local Next.js app** that serves a browser UI for coding agent harness observability — spend logs, subscription leverage, and project breakdown. Supports multiple harnesses today (switch in the top navbar); designed to add more adapters over time.
+Agentic Usage is a **local Next.js app** that serves a browser UI for coding agent harness observability — spend logs, subscription leverage, and project breakdown. Supports multiple harnesses today (switch in the top navbar); designed to add more adapters over time. Research for Codex CLI and Grok Build (both local-log harnesses, unlike Cursor CSV): [future-harnesses-codex-grok.md](./future-harnesses-codex-grok.md).
 
 ## Data flow
 
@@ -95,6 +95,7 @@ Details: [onboarding.md](./onboarding.md).
 | `/api/cursor/provider-usage/upload` | POST | Import billing CSV + project attach |
 | `/api/cursor/attach-projects` | POST | Re-run project attach on stored CSV rows |
 | `/api/cursor/billing-coverage` | GET | CSV date range, export links, unmatched preview |
+| `/api/cursor/local-export-suggestion` | GET | Pre-upload dashboard export link from local vscdb composer activity (`from` = first local day, `to` = today) |
 
 Default route: `/` → `/leverage` (Plan Leverage). Incomplete onboarding redirects to `/setup`.
 

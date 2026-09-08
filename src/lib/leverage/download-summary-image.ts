@@ -1,5 +1,7 @@
 import { toPng } from "html-to-image";
 
+import { APP_ICON_PATH } from "@/lib/brand";
+
 export const LEVERAGE_SUMMARY_EXPORT_WIDTH_PX = 920;
 
 export async function downloadPlanLeverageSummaryImage(
@@ -9,6 +11,7 @@ export async function downloadPlanLeverageSummaryImage(
   const restore = prepareNodeForCapture(node);
 
   try {
+    await preloadImage(APP_ICON_PATH);
     await waitForPaint();
     const dataUrl = await toPng(node, {
       cacheBust: true,
@@ -22,6 +25,15 @@ export async function downloadPlanLeverageSummaryImage(
   } finally {
     restore();
   }
+}
+
+function preloadImage(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+    img.src = src;
+  });
 }
 
 function waitForPaint(): Promise<void> {

@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 
 import { SetupProviders } from "@/components/setup/setup-providers";
 import { SetupShell } from "@/components/setup/setup-shell";
-import { isOnboardingComplete } from "@/lib/onboarding/status";
+import { migrateLegacyOnboardingIfNeeded } from "@/lib/onboarding/status";
 
 export default function SetupLayout({ children }: LayoutProps<"/setup">) {
-  if (isOnboardingComplete()) {
+  const settings = migrateLegacyOnboardingIfNeeded();
+  if (settings.onboardingCompletedAt) {
     redirect("/leverage");
   }
 

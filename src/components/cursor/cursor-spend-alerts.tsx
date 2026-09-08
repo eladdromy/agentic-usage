@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { ExternalLink, LoaderCircle, TriangleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,15 +41,12 @@ export function CursorSpendAlerts({
 
   const pendingSync = coverage.projectSyncPending;
   const missingMonths = coverage.missingMonths;
-  const unmatched = coverage.projectAttribution.unmatched;
-  const vscdbAvailable = coverage.projectAttribution.vscdbAvailable;
 
   const showSync =
     syncingProjects || pendingSync > 0;
   const showMissing = missingMonths.length > 0;
-  const showUnlinked = unmatched > 0;
 
-  if (!showSync && !showMissing && !showUnlinked) {
+  if (!showSync && !showMissing) {
     return null;
   }
 
@@ -120,33 +116,6 @@ export function CursorSpendAlerts({
                 </Button>
               ))}
             </div>
-          }
-        />
-      ) : null}
-
-      {showUnlinked ? (
-        <AlertRow
-          message={
-            <>
-              <span className="font-medium">Unlinked rows.</span>{" "}
-              {unmatched.toLocaleString()} billing row
-              {unmatched === 1 ? "" : "s"} could not be matched to a local
-              project
-              {!vscdbAvailable
-                ? " — check Cursor state.vscdb in Settings"
-                : ""}
-              . Totals still include them.
-            </>
-          }
-          action={
-            <Button
-              nativeButton={false}
-              size="sm"
-              variant="ghost"
-              render={<Link href="/settings" />}
-            >
-              Settings
-            </Button>
           }
         />
       ) : null}

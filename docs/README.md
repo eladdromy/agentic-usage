@@ -9,6 +9,7 @@
 | [cursor-project-sync-troubleshooting.md](./cursor-project-sync-troubleshooting.md) | Project sync failures, “thousands unmatched”, reset/re-match playbook |
 | [plan-pricing.md](./plan-pricing.md) | Subscription plan mapping and overrides |
 | [onboarding.md](./onboarding.md) | First-run setup wizard, detection, completion criteria |
+| [future-harnesses-codex-grok.md](./future-harnesses-codex-grok.md) | Research: Codex CLI & Grok Build local logs (not implemented) |
 
 ## Key source files
 
@@ -27,7 +28,7 @@
 | Page loading skeletons | `src/components/layout/page-loading-skeletons.tsx` |
 | Merged spend (all harnesses) | `src/lib/raw-spend-all.ts` |
 | Spend Logs filters | `src/components/filters.tsx`, `GET /api/raw-spend/projects`, `GET /api/raw-spend/models` |
-| Plan Leverage UI | `src/components/leverage/` (table, sparkline, summary share/export), `GET /api/leverage` |
+| Plan Leverage UI | `src/components/leverage/` (table, sparkline, summary download/export), `GET /api/leverage` |
 | Billing upload UI | `src/components/cursor/` |
 | Onboarding | `src/lib/onboarding/`, `src/app/setup/`, `GET /api/onboarding/status` |
 | Settings UI | `src/components/settings/settings-ui.tsx`, `src/components/settings/settings-detail-dialog.tsx`, `src/components/settings/settings-page-client.tsx` |

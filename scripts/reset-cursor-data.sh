@@ -11,7 +11,10 @@
 # Never touches:
 #   - your real Cursor state.vscdb on the machine
 #   - agentic-usage.db  (Claude harness data)
-#   - settings.json     (vscdbPathOverride and other preferences)
+#
+# Resets Cursor onboarding flags in settings.json (onboardingCompletedAt,
+# onboardingCursor*, planOverrides.cursor). Path overrides and other
+# preferences are kept.
 #
 # The data dir honors AGENTIC_USAGE_DATA_DIR, defaulting to <repo>/.data.
 #
@@ -51,12 +54,15 @@ for name in "${targets[@]}"; do
   done
 done
 
+node "$repo_root/scripts/patch-settings-onboarding.mjs" cursor
+
 if [[ "$deleted_any" -eq 0 ]]; then
   echo "Already clean — no Cursor billing data found in $data_dir"
 else
   echo ""
   echo "Cursor billing data reset in: $data_dir"
-  echo "Kept: agentic-usage.db, settings.json (and your real Cursor state.vscdb)."
+  echo "Kept: agentic-usage.db (and your real Cursor state.vscdb)."
   echo "Restart the dev server (npm run dev), then re-upload a usage-events CSV."
+  echo "If Claude indexed data is also empty, you'll return to /setup."
   echo "If sync marks all rows no_local_prompts, see docs/cursor-project-sync-troubleshooting.md"
 fi

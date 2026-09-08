@@ -16,6 +16,7 @@ import {
 import { getEventCount } from "@/lib/db/usage-db";
 import {
   readSettings,
+  writeSettings,
   type AppSettings,
   type HarnessKind,
   type OnboardingSuggestedFlow,
@@ -91,12 +92,52 @@ export function isCursorHarnessReady(settings: AppSettings): boolean {
 
 export function isOnboardingComplete(settings?: AppSettings): boolean {
   const s = settings ?? readSettings();
-  if (s.onboardingCompletedAt) return true;
+  return Boolean(s.onboardingCompletedAt);
+}
 
-  // Existing installs that already imported data before onboarding shipped.
-  if (getEventCount() > 0 || providerUsageDbHasRows()) return true;
+/** Pre-onboarding installs with indexed data but no wizard session. */
+export function isLegacyOnboardingInstall(settings?: AppSettings): boolean {
+  const s = settings ?? readSettings();
+  if (s.onboardingCompletedAt || s.onboardingStartedAt) return false;
+  return getEventCount() > 0 || providerUsageDbHasRows();
+}
 
-  return isClaudeHarnessReady(s) || isCursorHarnessReady(s);
+export function markOnboardingStarted(settings?: AppSettings): AppSettings {
+  const afterLegacy = migrateLegacyOnboardingIfNeeded(settings);
+  if (isOnboardingComplete(afterLegacy)) return afterLegacy;
+
+  if (afterLegacy.onboardingStartedAt) return afterLegacy;
+  const next: AppSettings = {
+    ...afterLegacy,
+    onboardingStartedAt: new Date().toISOString(),
+  };
+  writeSettings(next);
+  return next;
+}
+
+export function migrateLegacyOnboardingIfNeeded(settings?: AppSettings): AppSettings {
+  const current = settings ?? readSettings();
+  if (!isLegacyOnboardingInstall(current)) return current;
+
+  const claudeReady = getEventCount() > 0;
+  const cursorReady = providerUsageDbHasRows();
+  const next = completeOnboarding({
+    claudeReady,
+    cursorReady,
+    deferredCursor: false,
+  });
+
+  const migrated: AppSettings = {
+    ...next,
+    onboardingClaudeSubscriptionApproved:
+      claudeReady || current.onboardingClaudeSubscriptionApproved,
+    onboardingCursorSubscriptionApproved:
+      cursorReady || current.onboardingCursorSubscriptionApproved,
+    onboardingCursorProjectSyncDone:
+      cursorReady || current.onboardingCursorProjectSyncDone,
+  };
+  writeSettings(migrated);
+  return migrated;
 }
 
 export function resolveSuggestedFlow(

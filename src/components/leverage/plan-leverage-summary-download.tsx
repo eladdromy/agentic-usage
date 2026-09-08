@@ -1,23 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, LoaderCircle, Share2 } from "lucide-react";
+import { Download, LoaderCircle } from "lucide-react";
 
 import { PlanLeverageSummaryExportCard } from "@/components/leverage/plan-leverage-summary-export-card";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { downloadPlanLeverageSummaryImage } from "@/lib/leverage/download-summary-image";
 import type {
   PlanLeverageMonthRow,
   PlanLeverageYearSummary,
 } from "@/lib/leverage/types";
 
-export function PlanLeverageSummaryShare({
+export function PlanLeverageSummaryDownload({
   year,
   summary,
   months,
@@ -45,35 +39,21 @@ export function PlanLeverageSummaryShare({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              aria-label="Share summary"
-            />
-          }
-        >
-          <Share2 size={16} aria-hidden="true" />
-          Share
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-auto min-w-44">
-          <DropdownMenuItem
-            className="whitespace-nowrap"
-            onClick={() => void handleDownload()}
-            disabled={downloading}
-          >
-            {downloading ? (
-              <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-            ) : (
-              <Download size={16} aria-hidden="true" />
-            )}
-            Download summary
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Button
+        variant="outline"
+        size="sm"
+        className="shrink-0"
+        aria-label="Download summary"
+        onClick={() => void handleDownload()}
+        disabled={downloading}
+      >
+        {downloading ? (
+          <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+        ) : (
+          <Download size={16} aria-hidden="true" />
+        )}
+        Download
+      </Button>
 
       <PlanLeverageSummaryExportCard
         ref={exportRef}

@@ -1,11 +1,29 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { LoaderCircle } from "lucide-react";
 
 import { HarnessLogo } from "@/components/layout/harness-logo";
+import { useRouteSync } from "@/components/layout/route-sync";
+import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 
 export function CursorDeferredBanner() {
+  const router = useRouter();
+  const { switchHarness } = useRouteSync();
+  const [navigating, setNavigating] = useState(false);
+
+  async function openBillingSettings() {
+    setNavigating(true);
+    try {
+      await switchHarness("all");
+      router.push("/settings?tab=billing");
+    } finally {
+      setNavigating(false);
+    }
+  }
+
   return (
     <Surface className="space-y-4 border-sky-500/30 bg-sky-500/5 p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -19,12 +37,23 @@ export function CursorDeferredBanner() {
             merged harness views.
           </p>
         </div>
-        <Link
-          href="/settings?tab=billing"
-          className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium shadow-xs transition-colors hover:bg-muted/80 hover:text-foreground"
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          disabled={navigating}
+          onClick={() => void openBillingSettings()}
         >
-          Upload CSV in Settings
-        </Link>
+          {navigating ? (
+            <>
+              <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+              Opening Settings…
+            </>
+          ) : (
+            "Upload CSV in Settings"
+          )}
+        </Button>
       </div>
     </Surface>
   );

@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-
+import { AppBrand } from "@/components/brand/app-brand";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -30,12 +29,7 @@ export function SetupShell({
       <header className="border-b border-border/60 bg-background/75 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-4 px-6">
           <div className="min-w-0">
-            <Link
-              href="/setup"
-              className="text-base font-semibold tracking-tight transition-opacity hover:opacity-80"
-            >
-              Agentic Usage
-            </Link>
+            <AppBrand href="/setup" />
             {stepLabel ? (
               <p className="truncate text-xs text-muted-foreground">{stepLabel}</p>
             ) : null}

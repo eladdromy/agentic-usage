@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="readme-assets/icon.png" width="96" alt="Agentic Usage icon" />
+</p>
+
 # Agentic Usage
 
 **Local observability for your coding agent harnesses.** See spend, subscription leverage, and project breakdown — in one dashboard on your machine.
@@ -27,7 +31,7 @@ Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 
 - Multiple coding agent harnesses in one app — switch in the navbar or merge into a combined view
 - Automatic subscription plan detection where the harness exposes it
-- Sparklines, year summaries, and shareable leverage snapshots
+- Sparklines, year summaries, and downloadable leverage snapshots
 
 **On the roadmap**
 
@@ -84,7 +88,7 @@ After setup, Claude logs re-index on navigation; Cursor spend comes from uploade
 
 ### Plan Leverage
 
-Monthly API-equivalent spend divided by subscription cost — with year summaries, per-harness breakdown, and shareable snapshots.
+Monthly API-equivalent spend divided by subscription cost — with year summaries, per-harness breakdown, and downloadable snapshots.
 
 ![Plan Leverage — year summary, harness table, and monthly breakdown](./readme-assets/demo-plan-leverage.png)
 
