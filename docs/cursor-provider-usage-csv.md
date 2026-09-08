@@ -48,14 +48,13 @@ Re-run attribution without re-uploading: `POST /api/cursor/attach-projects` (opt
 
 ### Upload + project sync UX
 
-CSV upload is a **two-step wizard** in one dialog:
+CSV upload is a **single-step dialog** (pick file → upload). On success with new rows, the upload dialog closes and an **app-level blocking modal** opens for project linking — the same modal used by **Re-match projects** / **Sync now**. The modal cannot be dismissed (no X, backdrop click, or Escape) until sync finishes; **Done** stays disabled until then.
 
-1. **Upload** — pick and upload the usage-events file.
-2. **Link projects** — non-dismissible until sync finishes. Shows upload success, then progress.
+If the file has **no new rows** (`inserted === 0`), the upload dialog closes and a snackbar explains why (duplicates or empty file). Project sync is skipped.
 
-If the file has **no new rows** (`inserted === 0`), the dialog closes and a snackbar explains why (duplicates or empty file). Project sync is skipped.
+If **Re-match** / **Sync now** finds no rows to process, a snackbar reports that all billing rows are already linked.
 
-Manual sync (**Re-match projects**, **Sync now**) opens the same blocking modal at step 2 (no upload header). The modal is app-level so navigation does not hide in-progress sync. Re-match only lists months with pending or previously **unmatched** rows; prompt loading and subagent indexing are scoped to those rows’ timestamp window (not the full calendar month). Rows that fail again with the same reason skip redundant DB writes.
+Manual sync (**Re-match projects**, **Sync now**) opens the blocking modal directly (no upload header). The modal is app-level so navigation does not hide in-progress sync. Re-match only lists months with pending or previously **unmatched** rows; prompt loading and subagent indexing are scoped to those rows’ timestamp window (not the full calendar month). Rows that fail again with the same reason skip redundant DB writes.
 
 Progress phases (poll `GET /api/cursor/attach-projects/sync`):
 
@@ -65,11 +64,13 @@ Progress phases (poll `GET /api/cursor/attach-projects/sync`):
 | `preparingStep` | During `preparing`: `bubble_index` (if needed) → `workspace_scan` → `loading_prompts` |
 | `bubbleIndexReady` | Snapshot at job start; when `false`, the bubble-index prep step is shown |
 
-During `preparing`, the UI shows prep steps only (not billing months). Prompt loading for the billing date window runs in `loading_prompts`, then the match index is built from those bubbles before the month list appears. During `syncing`, months stay **Up next** until row matching begins; the counter then ticks `1/N`, `2/N`, … per row. **Done** dismisses the dialog/modal.
+During `preparing`, the UI shows prep steps only (not billing months). Prompt loading for the billing date window runs in `loading_prompts`, then the match index is built from those bubbles before the month list appears. During `syncing`, months stay **Up next** until row matching begins; the counter then ticks `1/N`, `2/N`, … per row. **Done** (enabled only when finished) dismisses the modal.
 
 After CSV upload, only billing months touched by the uploaded file’s date span are synced — e.g. a CSV covering 2026-09-08 syncs September only.
 
 Sync uses `POST /api/cursor/attach-projects/sync` (returns **202 immediately**) and polls `GET /api/cursor/attach-projects/sync` every 750ms. `GET` returns the **latest job regardless of status** (running _or_ finished), retained until the next sync replaces it, and `{ status: "idle" }` only when no sync has ever run. Retention matters because re-matching known-fail rows can finish in well under one poll interval (e.g. ~160ms for 123 rows) — if the completed job were dropped, the poller would never observe the final per-month result and would hang on stale "Up next" progress. The client stops polling as soon as it reads a non-`running` job (authoritative final matched/unmatched counts) or finds its job superseded.
+
+**Deployment note:** sync job state lives in an in-memory singleton on the Next.js server (`project-sync-background.ts`). This matches the app’s local single-process dev model; it does not survive multiple server instances or cold serverless workers. Run one server process when using background sync.
 
 Settings **Project sync** panel is read-only status inspection (not a sync trigger).
 

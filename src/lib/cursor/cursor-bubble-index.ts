@@ -324,94 +324,6 @@ async function syncBubbleIndexFromVscdbAsync(
   ).run(vscdbPath, mtimeMs, lastKey);
 }
 
-function syncBubbleIndexFromVscdb(vscdbPath: string, incremental: boolean): void {
-  const vscdb = getReadonlyCursorDatabase(vscdbPath);
-  if (!cursorDiskKvTableExists(vscdb)) return;
-
-  const indexDb = getIndexDatabase();
-  const meta = indexDb
-    .prepare(
-      `SELECT vscdb_path, vscdb_mtime_ms, last_key FROM bubble_index_meta WHERE id = 1`,
-    )
-    .get() as
-    | { vscdb_path: string; vscdb_mtime_ms: number; last_key: string }
-    | undefined;
-
-  const mtimeMs = readVscdbMtimeMs(vscdbPath);
-  const watermark =
-    incremental && meta?.vscdb_path === vscdbPath ? meta.last_key : "";
-
-  if (!incremental || !meta || meta.vscdb_path !== vscdbPath) {
-    indexDb.exec(`DELETE FROM bubble_index`);
-    indexDb.exec(`DELETE FROM bubble_index_meta`);
-  }
-
-  const select = watermark
-    ? vscdb.prepare(
-        `SELECT key, CAST(value AS TEXT) AS value
-         FROM ${CURSOR_DISK_KV_TABLE}
-         WHERE key > ?
-           AND key >= ?
-           AND key < ?
-         ORDER BY key`,
-      )
-    : vscdb.prepare(
-        `SELECT key, CAST(value AS TEXT) AS value
-         FROM ${CURSOR_DISK_KV_TABLE}
-         WHERE key >= ?
-           AND key < ?
-         ORDER BY key`,
-      );
-
-  const insert = indexDb.prepare(
-    `INSERT OR IGNORE INTO bubble_index (key, composer_id, created_at_sec, bubble_type)
-     VALUES (@key, @composer_id, @created_at_sec, @bubble_type)`,
-  );
-
-  let lastKey = watermark;
-  const batch: Array<{
-    key: string;
-    composer_id: string;
-    created_at_sec: number;
-    bubble_type: number;
-  }> = [];
-
-  const flush = () => {
-    if (batch.length === 0) return;
-    indexDb.transaction(() => {
-      for (const row of batch) insert.run(row);
-    })();
-    batch.length = 0;
-  };
-
-  const iter = watermark
-    ? select.iterate(watermark, BUBBLE_KEY_MIN, BUBBLE_KEY_MAX)
-    : select.iterate(BUBBLE_KEY_MIN, BUBBLE_KEY_MAX);
-
-  for (const row of iter as Iterable<{ key: string; value: string }>) {
-    lastKey = row.key;
-    const parsed = parseBubbleRow(row.key, row.value);
-    if (!parsed) continue;
-    batch.push({
-      key: row.key,
-      composer_id: parsed.composerId,
-      created_at_sec: parsed.createdAtSec,
-      bubble_type: parsed.bubbleType,
-    });
-    if (batch.length >= 500) flush();
-  }
-  flush();
-
-  indexDb.prepare(
-    `INSERT INTO bubble_index_meta (id, vscdb_path, vscdb_mtime_ms, last_key)
-     VALUES (1, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       vscdb_path = excluded.vscdb_path,
-       vscdb_mtime_ms = excluded.vscdb_mtime_ms,
-       last_key = excluded.last_key`,
-  ).run(vscdbPath, mtimeMs, lastKey);
-}
-
 export function isCursorBubbleIndexReady(vscdbPath: string): boolean {
   const indexDb = getIndexDatabase();
   const meta = indexDb
@@ -425,33 +337,6 @@ export function isCursorBubbleIndexReady(vscdbPath: string): boolean {
   if (count.count === 0) return false;
 
   return readVscdbMtimeMs(vscdbPath) <= meta.vscdb_mtime_ms;
-}
-
-export function ensureCursorBubbleIndexSync(vscdbPath: string): void {
-  if (isCursorBubbleIndexReady(vscdbPath)) return;
-  if (indexBuildInFlight === vscdbPath) return;
-
-  indexBuildInFlight = vscdbPath;
-  try {
-    const indexDb = getIndexDatabase();
-    const meta = indexDb
-      .prepare(
-        `SELECT vscdb_path, vscdb_mtime_ms, last_key FROM bubble_index_meta WHERE id = 1`,
-      )
-      .get() as
-      | { vscdb_path: string; vscdb_mtime_ms: number; last_key: string }
-      | undefined;
-    const count = indexDb
-      .prepare(`SELECT COUNT(*) AS count FROM bubble_index`)
-      .get() as { count: number };
-
-    syncBubbleIndexFromVscdb(
-      vscdbPath,
-      Boolean(meta && meta.vscdb_path === vscdbPath && count.count > 0),
-    );
-  } finally {
-    indexBuildInFlight = null;
-  }
 }
 
 export async function ensureCursorBubbleIndexSyncAsync(
@@ -495,32 +380,7 @@ export async function ensureCursorBubbleIndexSyncAsync(
 }
 
 export function scheduleCursorBubbleIndexBuild(vscdbPath: string): void {
-  if (isCursorBubbleIndexReady(vscdbPath)) return;
-  if (indexBuildInFlight === vscdbPath) return;
-
-  indexBuildInFlight = vscdbPath;
-  setImmediate(() => {
-    try {
-      const indexDb = getIndexDatabase();
-      const meta = indexDb
-        .prepare(
-          `SELECT vscdb_path, vscdb_mtime_ms, last_key FROM bubble_index_meta WHERE id = 1`,
-        )
-        .get() as
-        | { vscdb_path: string; vscdb_mtime_ms: number; last_key: string }
-        | undefined;
-      const count = indexDb
-        .prepare(`SELECT COUNT(*) AS count FROM bubble_index`)
-        .get() as { count: number };
-
-      syncBubbleIndexFromVscdb(
-        vscdbPath,
-        Boolean(meta && meta.vscdb_path === vscdbPath && count.count > 0),
-      );
-    } finally {
-      indexBuildInFlight = null;
-    }
-  });
+  void ensureCursorBubbleIndexSyncAsync(vscdbPath);
 }
 
 export function queryIndexedBubbleKeysInRange(

@@ -293,19 +293,6 @@ async function executeProjectSyncJob(
   }
 }
 
-export function getActiveProjectSyncJob(): ProjectSyncBackgroundJob | null {
-  if (!activeJob || activeJob.status !== "running") {
-    return null;
-  }
-  return activeJob;
-}
-
-/**
- * Latest job regardless of status, retained until the next sync replaces it.
- * The background job can finish faster than one client poll interval, so the
- * completed job must stay readable — otherwise the poller never observes the
- * final per-month result (matched / unmatched) and hangs on stale progress.
- */
 export function getLatestProjectSyncJob(): ProjectSyncBackgroundJob | null {
   return activeJob;
 }

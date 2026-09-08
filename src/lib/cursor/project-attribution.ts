@@ -43,9 +43,11 @@ function readWorkspaceProjectPath(workspaceId: string): string | null {
     const workspaceUri = decodeFolderUri(parsed.workspace);
     if (!workspaceUri) return null;
 
-    if (workspaceUri.endsWith(".json") && fs.existsSync(workspaceUri)) {
+    if (workspaceUri.endsWith(".json") && fs.existsSync(/* turbopackIgnore: true */ workspaceUri)) {
       try {
-        const nested = JSON.parse(fs.readFileSync(workspaceUri, "utf8")) as {
+        const nested = JSON.parse(
+          fs.readFileSync(/* turbopackIgnore: true */ workspaceUri, "utf8"),
+        ) as {
           folders?: { path?: unknown }[];
         };
         const firstFolder = nested.folders?.[0]?.path;

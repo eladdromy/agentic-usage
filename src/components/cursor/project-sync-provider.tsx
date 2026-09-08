@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 
 import { ProjectSyncModal } from "@/components/cursor/project-sync-modal";
 import {
@@ -92,11 +93,27 @@ export function ProjectSyncProvider({ children }: { children: ReactNode }) {
 
       const useModal = options.modal !== false;
 
+      if (useModal) {
+        setModalOpen(true);
+        setSyncSnapshot({
+          phase: "preparing",
+          bubbleIndexReady: true,
+          months: [],
+          status: "running",
+          finished: false,
+        });
+      }
+
       try {
         const payload = await fetchProjectSyncMonths();
         const targetMonths = resolveProjectSyncTargetMonths(options, payload.months);
 
         if (targetMonths.length === 0) {
+          toast.info("All billing rows are already linked to projects.");
+          if (useModal) {
+            setModalOpen(false);
+            setSyncSnapshot(null);
+          }
           return;
         }
 

@@ -167,9 +167,9 @@ async function pollBackgroundSyncJob(
         break;
       }
     } else {
-      // Our job is no longer the latest on the server (finished and cleared, or
-      // superseded by a newer sync). Finalize with the best-known snapshot so
-      // the UI never hangs waiting for progress that will never arrive.
+      // Our job is no longer the latest on the server (superseded by a newer sync).
+      // Finalize with the best-known snapshot so the UI never hangs waiting for progress
+      // that will never arrive for this job id.
       if (!finalSnapshot.finished) {
         finalSnapshot = {
           ...finalSnapshot,

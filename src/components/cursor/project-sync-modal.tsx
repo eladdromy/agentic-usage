@@ -28,11 +28,19 @@ export function ProjectSyncModal({
   return (
     <Dialog
       open={open}
-      onOpenChange={(next) => {
+      disablePointerDismissal={!finished}
+      onOpenChange={(next, eventDetails) => {
+        if (!next && !finished) {
+          eventDetails.cancel();
+          return;
+        }
         if (!next && finished) onClose();
       }}
     >
-      <DialogContent className="max-w-lg" showCloseButton={finished}>
+      <DialogContent
+        className="max-w-lg"
+        showCloseButton={finished}
+      >
         <DialogHeader>
           <DialogTitle>Link billing to projects</DialogTitle>
           <DialogDescription>
@@ -57,13 +65,15 @@ export function ProjectSyncModal({
           <p className="text-sm text-destructive">{snapshot.error}</p>
         ) : null}
 
-        {finished ? (
-          <DialogFooter className="-mx-4 -mb-4 mt-2 border-t bg-muted/50 p-4">
-            <Button type="button" onClick={onClose}>
-              {snapshot?.status === "error" ? "Done — with errors" : "Done"}
-            </Button>
-          </DialogFooter>
-        ) : null}
+        <DialogFooter className="-mx-4 -mb-4 mt-2 border-t bg-muted/50 p-4">
+          <Button type="button" disabled={!finished} onClick={onClose}>
+            {finished
+              ? snapshot?.status === "error"
+                ? "Done — with errors"
+                : "Done"
+              : "Syncing…"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
