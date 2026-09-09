@@ -5,9 +5,23 @@
   </span>
 </h1>
 
-**Local observability for your coding agent harnesses.** Plan leverage, project breakdown, and spend logs — in one dashboard on your machine.
+<p align="center">
+  <strong>Local observability for your coding agent harnesses.</strong> Plan leverage, project breakdown, and spend logs — in one dashboard on your machine.
+</p>
 
-License: PolyForm Noncommercial · Local-only · No telemetry
+<p align="center">
+  <a href="https://github.com/eladdromy/agentic-usage/releases/latest"><img src="https://img.shields.io/github/v/release/eladdromy/agentic-usage?label=version&color=green" alt="Version"></a>
+  <a href="https://github.com/eladdromy/agentic-usage/releases"><img src="https://img.shields.io/github/release-date/eladdromy/agentic-usage?label=last%20release&color=blue" alt="Last release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial"></a>
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Claude%20Code-supported-5436DA.svg" alt="Claude Code supported">
+  <img src="https://img.shields.io/badge/Cursor-supported-00D1FF.svg" alt="Cursor supported">
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Codex%20CLI-planned-555555.svg" alt="Codex CLI planned">
+  <img src="https://img.shields.io/badge/Grok%20Build-planned-555555.svg" alt="Grok Build planned">
+</p>
 
 ---
 
@@ -196,3 +210,9 @@ Issues and PRs welcome once the repo is public.
 | Personal / hobby / research / education | Yes |
 | Noncommercial organizations | Yes |
 | Commercial use | Requires a separate license — [open an issue](https://github.com/eladdromy/agentic-usage/issues) |
+
+---
+
+<p align="center">
+  Created by <a href="https://www.linkedin.com/in/elad-dromy-73769918a/">Elad Dromy</a>
+</p>
