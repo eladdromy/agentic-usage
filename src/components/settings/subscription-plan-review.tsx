@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import {
   SettingsActions,
   SettingsBlockTitle,
-  settingsSelectTriggerClass,
 } from "@/components/settings/settings-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +32,7 @@ import {
   formatPlanTierOptionLabel,
   type PlanTierPreset,
 } from "@/lib/profile/plan-tiers";
+import { cn } from "@/lib/utils";
 import type {
   HarnessKind,
   HarnessPlanOverrides,
@@ -219,12 +219,16 @@ export function SubscriptionPlanReview({
   harnessLabel,
   approveLabel,
   onApproved,
+  onDetectedPlanChange,
   mode = "onboarding",
 }: {
   harness: HarnessKind;
   harnessLabel: string;
   approveLabel?: string;
   onApproved?: () => void | Promise<void>;
+  onDetectedPlanChange?: (
+    plan: { label: string; monthlyUsd: number } | null,
+  ) => void;
   mode?: "onboarding" | "settings";
 }) {
   const [state, setState] = useState<HarnessPlanState | null>(null);
@@ -270,6 +274,11 @@ export function SubscriptionPlanReview({
       cancelled = true;
     };
   }, [fetchPlanMonths]);
+
+  useEffect(() => {
+    if (mode !== "onboarding" || !onDetectedPlanChange) return;
+    onDetectedPlanChange(state?.detectedPlan ?? null);
+  }, [mode, onDetectedPlanChange, state?.detectedPlan]);
 
   async function switchYear(nextYear: number) {
     if (!state || state.activeYear === nextYear) return;
@@ -439,9 +448,16 @@ export function SubscriptionPlanReview({
     ? `Auto-detected today: ${state.detectedPlan.label} ($${state.detectedPlan.monthlyUsd}/mo). Override individual months when your tier changed.`
     : "Set the subscription tier per month when auto-detection is unavailable.";
 
+  const planTableCellClass = "max-w-0 px-4 whitespace-normal";
+  const planTableSelectClass =
+    "w-full min-w-0 max-w-full overflow-hidden rounded-xl border-border/60 bg-card/80 whitespace-normal";
+  const planTableInputClass = "w-full min-w-0 max-w-full bg-background";
+
   return (
     <div className="space-y-4">
-      <SettingsBlockTitle title="Monthly plans" description={planDescription} />
+      {mode === "settings" ? (
+        <SettingsBlockTitle title="Monthly plans" description={planDescription} />
+      ) : null}
       {state.years.length > 0 ? (
         <Tabs
           value={String(state.activeYear)}
@@ -468,14 +484,14 @@ export function SubscriptionPlanReview({
           monthly plans here.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border/60 bg-white shadow-sm dark:bg-card">
-          <Table>
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-white shadow-sm dark:bg-card [&_[data-slot=table-container]]:overflow-x-visible">
+          <Table className="table-fixed">
             <TableHeader className="bg-muted/40">
               <TableRow className="border-border/60 hover:bg-transparent">
-                <TableHead className="px-4">Month</TableHead>
-                <TableHead className="px-4">Plan tier</TableHead>
-                <TableHead className="w-32 px-4">Base $/mo</TableHead>
-                <TableHead className="min-w-64 px-4">Plan label</TableHead>
+                <TableHead className="w-[22%] px-4">Month</TableHead>
+                <TableHead className="w-[30%] px-4">Plan tier</TableHead>
+                <TableHead className="w-[16%] px-4">Base $/mo</TableHead>
+                <TableHead className="w-[32%] px-4">Plan label</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -488,23 +504,25 @@ export function SubscriptionPlanReview({
                 const isCustom = row.tierId === CUSTOM_PLAN_TIER_ID;
                 return (
                   <TableRow key={month} className="border-border/60 hover:bg-muted/20">
-                    <TableCell className="px-4 font-medium whitespace-normal">
-                      {monthLabel(month)}
+                    <TableCell className={cn(planTableCellClass, "font-medium")}>
+                      <span className="block truncate">{monthLabel(month)}</span>
                     </TableCell>
-                    <TableCell className="px-4 whitespace-normal">
+                    <TableCell className={planTableCellClass}>
                       <Select
                         value={row.tierId}
                         onValueChange={(value) =>
                           handleTierChange(month, value ?? AUTO_PLAN_TIER_ID)
                         }
                       >
-                        <SelectTrigger className={settingsSelectTriggerClass}>
-                          {tierTriggerLabel(
-                            row.tierId,
-                            row,
-                            state.tiers,
-                            state.detectedPlan,
-                          )}
+                        <SelectTrigger className={planTableSelectClass}>
+                          <span className="min-w-0 truncate">
+                            {tierTriggerLabel(
+                              row.tierId,
+                              row,
+                              state.tiers,
+                              state.detectedPlan,
+                            )}
+                          </span>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={AUTO_PLAN_TIER_ID}>
@@ -521,10 +539,10 @@ export function SubscriptionPlanReview({
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="px-4 whitespace-normal">
+                    <TableCell className={planTableCellClass}>
                       {isCustom ? (
                         <Input
-                          className="w-32 bg-background"
+                          className={planTableInputClass}
                           value={row.monthlyUsd}
                           onChange={(e) =>
                             updateRow(month, { monthlyUsd: e.target.value })
@@ -534,20 +552,20 @@ export function SubscriptionPlanReview({
                           placeholder="Amount"
                         />
                       ) : (
-                        <span>{formatBaseUsd(row.monthlyUsd)}</span>
+                        <span className="block truncate">{formatBaseUsd(row.monthlyUsd)}</span>
                       )}
                     </TableCell>
-                    <TableCell className="px-4 whitespace-normal">
+                    <TableCell className={planTableCellClass}>
                       {isCustom ? (
                         <Input
-                          className="w-full min-w-48 max-w-64 bg-background"
+                          className={planTableInputClass}
                           value={row.label}
                           onChange={(e) => updateRow(month, { label: e.target.value })}
                           autoComplete="off"
                           placeholder="e.g. Enterprise deal"
                         />
                       ) : (
-                        <span>{row.label.trim() || "—"}</span>
+                        <span className="block truncate">{row.label.trim() || "—"}</span>
                       )}
                     </TableCell>
                   </TableRow>

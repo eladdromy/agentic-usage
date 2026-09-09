@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="readme-assets/demo-hero.png" alt="Plan Leverage — 2026 year summary with leverage, exposure, and per-harness breakdown" width="900"/>
+</p>
+
 <h1 align="center">
   <span style="display: inline-flex; align-items: center; gap: 0.4em;">
     <img src="readme-assets/icon.png" width="30" alt="" style="border-radius: 6px; display: block;" />
@@ -5,9 +9,21 @@
   </span>
 </h1>
 
-**Local observability for your coding agent harnesses.** Plan leverage, project breakdown, and spend logs — in one dashboard on your machine.
+<p align="center">
+  <strong>Local observability for your coding agent harnesses.</strong> Plan leverage, project breakdown, and spend logs — in one dashboard on your machine.
+</p>
 
-License: PolyForm Noncommercial · Local-only · No telemetry
+<p align="center">
+  <a href="https://github.com/eladdromy/agentic-usage/releases/latest"><img src="https://img.shields.io/github/v/release/eladdromy/agentic-usage?label=version&color=green" alt="Version"></a>
+  <a href="https://github.com/eladdromy/agentic-usage/releases"><img src="https://img.shields.io/github/release-date/eladdromy/agentic-usage?label=last%20release&color=blue" alt="Last release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial"></a>
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Claude%20Code-supported-5436DA.svg" alt="Claude Code supported">
+  <img src="https://img.shields.io/badge/Cursor-supported-00D1FF.svg" alt="Cursor supported">
+  <img src="https://img.shields.io/badge/Codex%20CLI-planned-555555.svg" alt="Codex CLI planned">
+  <img src="https://img.shields.io/badge/Grok%20Build-planned-555555.svg" alt="Grok Build planned">
+</p>
 
 ---
 
@@ -55,20 +71,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) (redirects to Plan Leverage).
-
-Auto-open the browser after start:
-
-```bash
-npm run dev:open
-```
-
-Production build:
-
-```bash
-npm run build
-npm start
-```
+Open [http://localhost:3000](http://localhost:3000).
 
 > **Coming soon:** a single install command so you don't need to clone and run dev manually. Track progress in [Issues](https://github.com/eladdromy/agentic-usage/issues).
 
@@ -91,13 +94,17 @@ After setup, Claude logs re-index on navigation; Cursor spend comes from uploade
 
 ## Screenshots
 
-![Plan Leverage — 2026 year summary with leverage, exposure, and per-harness breakdown](./readme-assets/demo-hero.png)
-
 ### Plan Leverage
 
 Monthly API-equivalent spend divided by subscription cost — with year summaries, per-harness breakdown, and downloadable snapshots.
 
 ![Plan Leverage — year summary, harness table, and monthly breakdown](./readme-assets/demo-plan-leverage.png)
+
+### Projects breakdown
+
+All-time spend allocated by project/workspace, with per-harness drill-down.
+
+![Projects breakdown — spend and API-equivalent cost by project](./readme-assets/demo-projects.png)
 
 ### Spend Logs
 
@@ -105,15 +112,11 @@ Per-request token spend with filters by project, model, and date range.
 
 ![Spend Logs — filtered request table with token and API-equivalent columns](./readme-assets/demo-spend-logs.png)
 
-### Projects
-
-All-time spend allocated by project/workspace, with per-harness drill-down.
-
-![Projects breakdown — spend and API-equivalent cost by project](./readme-assets/demo-projects.png)
-
 ---
 
 ## Environment
+
+No `.env` file is required. These are **optional shell variables** — set them when starting the app if you need to override defaults (e.g. `AGENTIC_USAGE_DATA_DIR=/tmp/data npm run dev`). Day-to-day config (harness paths, subscription plans) lives in `.data/settings.json` after setup.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -126,31 +129,6 @@ All-time spend allocated by project/workspace, with per-harness drill-down.
 When `AGENTIC_USAGE_ANONYMIZE=1`, only labels shown in the UI are anonymized — not internal filter keys or database queries.
 
 ---
-
-## README screenshots
-
-Regenerate demo images (builds a production server with anonymization, scans APIs and rendered pages for leaks, then captures four PNGs):
-
-```bash
-npm run screenshots
-```
-
-Use an existing dev server only if it was started with anonymization enabled:
-
-```bash
-AGENTIC_USAGE_ANONYMIZE=1 npm run dev
-SCREENSHOT_USE_DEV=1 npm run screenshots
-```
-
-If the dev server is not anonymized, the script exits unless you pass `SCREENSHOT_FORCE_DEV=1` (not recommended).
-
-Verify leak checks against a running server:
-
-```bash
-SCREENSHOT_BASE_URL=http://localhost:3001 npm run screenshots:verify
-```
-
-See [docs/readme-screenshots.md](./docs/readme-screenshots.md) for details.
 
 ## Privacy
 
@@ -196,3 +174,9 @@ Issues and PRs welcome once the repo is public.
 | Personal / hobby / research / education | Yes |
 | Noncommercial organizations | Yes |
 | Commercial use | Requires a separate license — [open an issue](https://github.com/eladdromy/agentic-usage/issues) |
+
+---
+
+<p align="center">
+  Created by <a href="https://www.linkedin.com/in/elad-dromy-73769918a/">Elad Dromy</a>
+</p>

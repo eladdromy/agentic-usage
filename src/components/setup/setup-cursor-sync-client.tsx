@@ -10,7 +10,9 @@ import {
   SetupStepCard,
 } from "@/components/setup/setup-shell";
 import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
 import { nextPathAfterCursorSync } from "@/lib/onboarding/navigation";
+import { CURSOR_SETUP_STEPS } from "@/lib/onboarding/setup-steps";
 
 export function SetupCursorSyncClient() {
   const router = useRouter();
@@ -37,21 +39,24 @@ export function SetupCursorSyncClient() {
 
   return (
     <SetupStepCard
+      setupProgress={CURSOR_SETUP_STEPS.sync}
       title="Link billing to projects"
       description="Matching CSV rows to local Cursor workspaces. First run may build a one-time conversation index."
     >
-      {syncSnapshot ? (
-        <ProjectSyncProgressPanel
-          phase={syncSnapshot.phase}
-          preparingStep={syncSnapshot.preparingStep}
-          months={syncSnapshot.months}
-          finished={finished}
-          bubbleIndexReady={syncSnapshot.bubbleIndexReady}
-          uploadSummary={null}
-        />
-      ) : (
-        <p className="text-sm text-muted-foreground">Starting project sync…</p>
-      )}
+      <Surface className="p-5">
+        {syncSnapshot ? (
+          <ProjectSyncProgressPanel
+            phase={syncSnapshot.phase}
+            preparingStep={syncSnapshot.preparingStep}
+            months={syncSnapshot.months}
+            finished={finished}
+            bubbleIndexReady={syncSnapshot.bubbleIndexReady}
+            uploadSummary={null}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">Starting project sync…</p>
+        )}
+      </Surface>
 
       <SetupActions>
         <Button type="button" disabled={!finished || failed} onClick={() => void handleContinue()}>

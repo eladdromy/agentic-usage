@@ -28,7 +28,14 @@ export function SetupCursorOfferClient() {
   return (
     <SetupStepCard
       title="Set up Cursor too?"
-      description="Claude Code is ready. Cursor needs a billing CSV import and project sync — you can do that now or later from Plan Leverage."
+      description={
+        <>
+          Claude Code is ready.
+          <br />
+          Cursor needs a billing CSV import and project sync — you can do that now or later from
+          Plan Leverage.
+        </>
+      }
     >
       <SetupActions>
         <Button type="button" variant="outline" onClick={() => void skipCursor()}>
