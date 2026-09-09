@@ -1,7 +1,31 @@
 {
   "name": "agentic-usage",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "Local observability for your coding agent harnesses. Plan leverage, project breakdown, and spend logs — in one dashboard on your machine.",
+  "author": "Elad Dromy (https://github.com/eladdromy)",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "private": false,
+  "homepage": "https://github.com/eladdromy/agentic-usage#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eladdromy/agentic-usage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eladdromy/agentic-usage/issues"
+  },
+  "keywords": [
+    "agentic-usage",
+    "ai-agents",
+    "claude-code",
+    "coding-agents",
+    "cursor",
+    "developer-tools",
+    "local-first",
+    "llm",
+    "observability",
+    "token-usage",
+    "usage-tracking"
+  ],
   "scripts": {
     "dev": "next dev",
     "dev:open": "next dev & sleep 2 && open http://localhost:3000",
