@@ -17,8 +17,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Claude%20Code-supported-5436DA.svg" alt="Claude Code supported">
   <img src="https://img.shields.io/badge/Cursor-supported-00D1FF.svg" alt="Cursor supported">
-</p>
-<p align="center">
   <img src="https://img.shields.io/badge/Codex%20CLI-planned-555555.svg" alt="Codex CLI planned">
   <img src="https://img.shields.io/badge/Grok%20Build-planned-555555.svg" alt="Grok Build planned">
 </p>
