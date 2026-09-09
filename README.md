@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="readme-assets/demo-hero.png" alt="Plan Leverage — 2026 year summary with leverage, exposure, and per-harness breakdown" width="900"/>
+</p>
+
 <h1 align="center">
   <span style="display: inline-flex; align-items: center; gap: 0.4em;">
     <img src="readme-assets/icon.png" width="30" alt="" style="border-radius: 6px; display: block;" />
@@ -102,8 +106,6 @@ After setup, Claude logs re-index on navigation; Cursor spend comes from uploade
 ---
 
 ## Screenshots
-
-![Plan Leverage — 2026 year summary with leverage, exposure, and per-harness breakdown](./readme-assets/demo-hero.png)
 
 ### Plan Leverage
 
