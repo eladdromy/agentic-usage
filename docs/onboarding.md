@@ -31,6 +31,14 @@ Fast local checks via `GET /api/onboarding/status`:
 
 Suggested flow: `both` | `claude` | `cursor` | `none`.
 
+## Setup UI
+
+- Welcome lists detected harnesses only (no explicit “setup flow” label); routing follows `suggestedFlow` from status.
+- Step content cards use `Surface` (white/card background), matching the Claude log index step.
+- Harness setup steps show a line above the step title: logo + harness name + `Setup (step/total)` — see `src/lib/onboarding/setup-steps.ts` (Claude: 2 steps, Cursor: 3).
+- Subscription steps reuse `SubscriptionPlanReview` in `mode="onboarding"`: step title + instructions with a line break and short `Auto-detected today: …` in the description — not the Settings “Monthly plans” block.
+- Cursor CSV upload: export helpers and drop zone in a card; **Upload CSV** sits below the card in `SetupActions`.
+
 ## Setup routes
 
 | Route | Purpose |
@@ -74,6 +82,7 @@ onboardingDeferredCursor: boolean;
 |------|------|
 | Status / readiness | `src/lib/onboarding/status.ts` |
 | Step routing | `src/lib/onboarding/navigation.ts` |
+| Harness step labels (X/Y) | `src/lib/onboarding/setup-steps.ts` |
 | Setup UI | `src/components/setup/`, `src/app/setup/` |
 | Redirect guard | `src/app/(app)/layout.tsx`, `src/app/setup/layout.tsx` (both run legacy migration) |
 | Shared subscription step | `src/components/settings/subscription-plan-review.tsx` |

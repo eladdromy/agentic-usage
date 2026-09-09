@@ -1,8 +1,27 @@
 "use client";
 
 import { AppBrand } from "@/components/brand/app-brand";
+import { HarnessLogo } from "@/components/layout/harness-logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import type { HarnessSetupProgress } from "@/lib/onboarding/setup-steps";
+import { harnessLabel } from "@/lib/projects-breakdown-shared";
 import { cn } from "@/lib/utils";
+
+function SetupHarnessStepHeader({ progress }: { progress: HarnessSetupProgress }) {
+  return (
+    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+      <HarnessLogo harness={progress.harness} className="size-5" />
+      <span>
+        <span className="font-medium text-foreground">
+          {harnessLabel(progress.harness)} Setup
+        </span>{" "}
+        <span className="tabular-nums">
+          ({progress.step}/{progress.total})
+        </span>
+      </span>
+    </p>
+  );
+}
 
 export function SetupShell({
   children,
@@ -48,20 +67,23 @@ export function SetupShell({
 export function SetupStepCard({
   title,
   description,
+  setupProgress,
   children,
   className,
 }: {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
+  setupProgress?: HarnessSetupProgress;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn("space-y-8", className)}>
       <div className="space-y-2">
+        {setupProgress ? <SetupHarnessStepHeader progress={setupProgress} /> : null}
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {description ? (
-          <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+          <div className="text-sm leading-relaxed text-muted-foreground">{description}</div>
         ) : null}
       </div>
       {children}
