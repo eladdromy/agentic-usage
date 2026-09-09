@@ -100,21 +100,23 @@ Monthly API-equivalent spend divided by subscription cost — with year summarie
 
 ![Plan Leverage — year summary, harness table, and monthly breakdown](./readme-assets/demo-plan-leverage.png)
 
+### Projects breakdown
+
+All-time spend allocated by project/workspace, with per-harness drill-down.
+
+![Projects breakdown — spend and API-equivalent cost by project](./readme-assets/demo-projects.png)
+
 ### Spend Logs
 
 Per-request token spend with filters by project, model, and date range.
 
 ![Spend Logs — filtered request table with token and API-equivalent columns](./readme-assets/demo-spend-logs.png)
 
-### Projects
-
-All-time spend allocated by project/workspace, with per-harness drill-down.
-
-![Projects breakdown — spend and API-equivalent cost by project](./readme-assets/demo-projects.png)
-
 ---
 
 ## Environment
+
+No `.env` file is required. These are **optional shell variables** — set them when starting the app if you need to override defaults (e.g. `AGENTIC_USAGE_DATA_DIR=/tmp/data npm run dev`). Day-to-day config (harness paths, subscription plans) lives in `.data/settings.json` after setup.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -127,31 +129,6 @@ All-time spend allocated by project/workspace, with per-harness drill-down.
 When `AGENTIC_USAGE_ANONYMIZE=1`, only labels shown in the UI are anonymized — not internal filter keys or database queries.
 
 ---
-
-## README screenshots
-
-Regenerate demo images (builds a production server with anonymization, scans APIs and rendered pages for leaks, then captures four PNGs):
-
-```bash
-npm run screenshots
-```
-
-Use an existing dev server only if it was started with anonymization enabled:
-
-```bash
-AGENTIC_USAGE_ANONYMIZE=1 npm run dev
-SCREENSHOT_USE_DEV=1 npm run screenshots
-```
-
-If the dev server is not anonymized, the script exits unless you pass `SCREENSHOT_FORCE_DEV=1` (not recommended).
-
-Verify leak checks against a running server:
-
-```bash
-SCREENSHOT_BASE_URL=http://localhost:3001 npm run screenshots:verify
-```
-
-See [docs/readme-screenshots.md](./docs/readme-screenshots.md) for details.
 
 ## Privacy
 

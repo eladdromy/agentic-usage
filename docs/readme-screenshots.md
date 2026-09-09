@@ -16,10 +16,22 @@
 
 ## Commands
 
+Regenerate demo images (builds a production server with anonymization, scans APIs and rendered pages for leaks, then captures four PNGs):
+
+```bash
+npm run screenshots
+```
+
 | Command | Purpose |
 |---------|---------|
 | `npm run screenshots` | Full capture pipeline |
 | `npm run screenshots:verify` | Leak scan only (requires running server; set `SCREENSHOT_BASE_URL`) |
+
+Verify leak checks against a running server:
+
+```bash
+SCREENSHOT_BASE_URL=http://localhost:3001 npm run screenshots:verify
+```
 
 ## Anonymization behavior
 
@@ -48,4 +60,4 @@ AGENTIC_USAGE_ANONYMIZE=1 npm run dev
 SCREENSHOT_USE_DEV=1 npm run screenshots
 ```
 
-Without anonymization on the dev server, the script fails unless `SCREENSHOT_FORCE_DEV=1` is set.
+Without anonymization on the dev server, the script fails unless `SCREENSHOT_FORCE_DEV=1` is set (not recommended).
