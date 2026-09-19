@@ -9,6 +9,7 @@ export function setupEntryPath(status: OnboardingStatus): string {
   }
 
   if (suggestedFlow === "cursor" || (suggestedFlow === "both" && !detected.claude)) {
+    if (status.settings.traceMode?.cursor == null) return "/setup/cursor/mode";
     if (!status.cursorHasCsv) return "/setup/cursor/upload";
     if (!ready.cursor && !status.settings.onboardingCursorProjectSyncDone) {
       return "/setup/cursor/sync";
@@ -18,7 +19,15 @@ export function setupEntryPath(status: OnboardingStatus): string {
   }
 
   if (!ready.claude) {
+    const claudeTraceMode = status.settings.traceMode?.claude;
+    if (claudeTraceMode == null) return "/setup/claude/mode";
     if (status.claudeEventCount === 0) return "/setup/claude/sync";
+    if (
+      claudeTraceMode === "full_tracing" &&
+      !status.settings.onboardingClaudeTraceIndexed
+    ) {
+      return "/setup/claude/trace";
+    }
     if (!status.settings.onboardingClaudeSubscriptionApproved) {
       return "/setup/claude/subscription";
     }
@@ -48,8 +57,23 @@ export function setupEntryPath(status: OnboardingStatus): string {
   return "/setup/claude/sync";
 }
 
+export function nextPathAfterClaudeMode(): string {
+  return "/setup/claude/sync";
+}
+
 export function nextPathAfterClaudeSync(status: OnboardingStatus): string {
+  if (status.settings.traceMode?.claude === "full_tracing") {
+    return "/setup/claude/trace";
+  }
   return "/setup/claude/subscription";
+}
+
+export function nextPathAfterClaudeTrace(): string {
+  return "/setup/claude/subscription";
+}
+
+export function nextPathAfterCursorMode(): string {
+  return "/setup/cursor/upload";
 }
 
 export function nextPathAfterClaudeSubscription(

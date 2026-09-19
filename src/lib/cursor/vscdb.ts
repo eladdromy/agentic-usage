@@ -7,6 +7,17 @@ let connPath: string | null = null;
 
 export const CURSOR_DISK_KV_TABLE = "cursorDiskKV";
 
+/** Seek bounds for one composer's bubbles in cursorDiskKV (avoid slow `LIKE`). */
+export function composerBubbleKeyRange(composerId: string): {
+  min: string;
+  max: string;
+} {
+  return {
+    min: `bubbleId:${composerId}:`,
+    max: `bubbleId:${composerId};`,
+  };
+}
+
 export function getReadonlyCursorDatabase(dbPath: string): Database.Database {
   if (conn && connPath === dbPath) return conn;
 

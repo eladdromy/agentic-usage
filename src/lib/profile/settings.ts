@@ -37,6 +37,10 @@ export const SYNC_DEBOUNCE_MINUTES = [1, 5, 10] as const;
 export type SyncDebounceMinutes = (typeof SYNC_DEBOUNCE_MINUTES)[number];
 export type SyncMethod = "updates_only" | "full";
 
+/** Per-harness observability depth chosen in onboarding/settings. */
+export type TraceMode = "spend_only" | "full_tracing";
+export type TraceModeByHarness = Partial<Record<HarnessKind, TraceMode>>;
+
 export type OnboardingSuggestedFlow = "claude" | "cursor" | "both" | "none";
 
 export type AppSettings = {
@@ -52,12 +56,16 @@ export type AppSettings = {
   activeHarness: ActiveHarness | null;
   syncDebounceMinutes: SyncDebounceMinutes;
   syncMethod: SyncMethod;
+  /** Per-harness "Spend only" vs "Spend + Full Tracing" choice. */
+  traceMode: TraceModeByHarness;
   /** Set when the user enters /setup — distinguishes wizard-in-progress from legacy installs. */
   onboardingStartedAt: string | null;
   onboardingCompletedAt: string | null;
   onboardingClaudeSubscriptionApproved: boolean;
   onboardingCursorSubscriptionApproved: boolean;
   onboardingCursorProjectSyncDone: boolean;
+  /** True once the in-wizard Claude trace index step has completed. */
+  onboardingClaudeTraceIndexed: boolean;
   onboardingDeferredCursor: boolean;
 };
 
@@ -80,13 +88,71 @@ const DEFAULT_SETTINGS: AppSettings = {
   activeHarness: null,
   syncDebounceMinutes: 1,
   syncMethod: "updates_only",
+  traceMode: {},
   onboardingStartedAt: null,
   onboardingCompletedAt: null,
   onboardingClaudeSubscriptionApproved: false,
   onboardingCursorSubscriptionApproved: false,
   onboardingCursorProjectSyncDone: false,
+  onboardingClaudeTraceIndexed: false,
   onboardingDeferredCursor: false,
 };
+
+function parseTraceModeValue(value: unknown): TraceMode | null {
+  return value === "full_tracing" || value === "spend_only" ? value : null;
+}
+
+export function normalizeTraceMode(value: unknown): TraceModeByHarness {
+  if (!isPlainObject(value)) return {};
+  const out: TraceModeByHarness = {};
+  const claude = parseTraceModeValue(value.claude);
+  if (claude) out.claude = claude;
+  const cursor = parseTraceModeValue(value.cursor);
+  if (cursor) out.cursor = cursor;
+  return out;
+}
+
+/** Installs that finished the Claude trace wizard before traceMode was persisted. */
+function applyLegacyTraceModeMigration(
+  raw: Record<string, unknown>,
+  traceMode: TraceModeByHarness,
+): TraceModeByHarness {
+  if (!traceMode.claude && raw.onboardingClaudeTraceIndexed === true) {
+    return { ...traceMode, claude: "full_tracing" };
+  }
+  return traceMode;
+}
+
+export function isFullTracingEnabledForHarness(
+  harness: HarnessKind,
+  settings?: AppSettings,
+): boolean {
+  return resolveTraceMode(harness, settings) === "full_tracing";
+}
+
+/** Whether any harness in scope should run the trace index (sync / explorer). */
+export function isTraceIndexingEnabled(
+  activeHarness: ActiveHarness,
+  settings?: AppSettings,
+): boolean {
+  const s = settings ?? readSettings();
+  if (activeHarness === "all") {
+    return (
+      isFullTracingEnabledForHarness("claude", s) ||
+      isFullTracingEnabledForHarness("cursor", s)
+    );
+  }
+  return isFullTracingEnabledForHarness(activeHarness, s);
+}
+
+/** Per-harness tracing depth, defaulting to spend-only when unset. */
+export function resolveTraceMode(
+  harness: HarnessKind,
+  settings?: AppSettings,
+): TraceMode {
+  const s = settings ?? readSettings();
+  return s.traceMode[harness] ?? "spend_only";
+}
 
 function parseMonthlyPlanOverride(value: unknown): MonthlyPlanOverride | null {
   if (!isPlainObject(value)) return null;
@@ -195,6 +261,10 @@ export function readSettings(): AppSettings {
       activeHarness: parseActiveHarness(raw.activeHarness),
       syncDebounceMinutes: parseSyncDebounceMinutes(raw.syncDebounceMinutes),
       syncMethod: parseSyncMethod(raw.syncMethod),
+      traceMode: applyLegacyTraceModeMigration(
+        raw,
+        normalizeTraceMode(raw.traceMode),
+      ),
       onboardingStartedAt:
         typeof raw.onboardingStartedAt === "string"
           ? raw.onboardingStartedAt
@@ -209,6 +279,7 @@ export function readSettings(): AppSettings {
         raw.onboardingCursorSubscriptionApproved === true,
       onboardingCursorProjectSyncDone:
         raw.onboardingCursorProjectSyncDone === true,
+      onboardingClaudeTraceIndexed: raw.onboardingClaudeTraceIndexed === true,
       onboardingDeferredCursor: raw.onboardingDeferredCursor === true,
     };
   } catch {

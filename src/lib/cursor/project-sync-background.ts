@@ -9,6 +9,7 @@ import {
   dayUtcSecBounds,
   monthUtcSecBounds,
 } from "@/lib/cursor/billing-project-attach";
+import { scheduleCursorTraceCostRefresh } from "@/lib/db/cursor-trace-db";
 import { ensureCursorBubbleIndexSyncAsync } from "@/lib/cursor/cursor-bubble-index";
 import { buildSubagentParentProjectIndexAsync } from "@/lib/cursor/cursor-subagent-spawn";
 import {
@@ -296,6 +297,14 @@ async function executeProjectSyncJob(
       : "done";
     if (job.status === "error" && !job.error) {
       job.error = "Some billing months failed to sync";
+    }
+
+    const totalMatched = job.months.reduce(
+      (sum, month) => sum + (month.matched ?? 0),
+      0,
+    );
+    if (totalMatched > 0) {
+      scheduleCursorTraceCostRefresh();
     }
   } catch (error) {
     job.status = "error";

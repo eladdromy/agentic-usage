@@ -41,7 +41,7 @@ export function SetupCursorOfferClient() {
         <Button type="button" variant="outline" onClick={() => void skipCursor()}>
           Skip for now
         </Button>
-        <Button type="button" onClick={() => router.push("/setup/cursor/upload")}>
+        <Button type="button" onClick={() => router.push("/setup/cursor/mode")}>
           Set up Cursor
         </Button>
       </SetupActions>

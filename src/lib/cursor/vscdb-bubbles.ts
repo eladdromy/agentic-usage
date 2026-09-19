@@ -16,6 +16,8 @@ import {
   loadGlobalBubblesForAttach,
   loadGlobalBubblesForAttachAsync,
   queryIndexedBubbleKeysInRange,
+  loadComposerBubblesInRangeDirect,
+  queryIndexedBubblesForComposerInRange,
 } from "@/lib/cursor/cursor-bubble-index";
 import {
   CURSOR_DISK_KV_TABLE,
@@ -59,6 +61,40 @@ export async function loadGlobalBubblesInRangeAsync(
   if (!cursorVscdbExists(resolved)) return [];
 
   return loadGlobalBubblesForAttachAsync(fromSec, toSec, resolved, options);
+}
+
+/** User/agent bubble stubs for one composer in a billing/trace time window. */
+export function loadComposerBubblesInRange(
+  composerId: string,
+  fromSec: number,
+  toSec: number,
+  dbPath?: string,
+): GlobalBubbleStub[] {
+  const resolved =
+    dbPath ??
+    getResolvedVscdbPath(readSettings().vscdbPathOverride ?? null);
+
+  if (!cursorVscdbExists(resolved) || !composerId.trim()) return [];
+
+  const roughFrom = Math.floor(fromSec) - BUFFER_SEC;
+  const roughTo = Math.ceil(toSec) + BUFFER_SEC;
+
+  if (isCursorBubbleIndexReady(resolved)) {
+    const indexed = queryIndexedBubblesForComposerInRange(
+      composerId,
+      roughFrom,
+      roughTo,
+      resolved,
+    );
+    if (indexed.length > 0) return indexed;
+  }
+
+  return loadComposerBubblesInRangeDirect(
+    composerId,
+    roughFrom,
+    roughTo,
+    resolved,
+  );
 }
 
 export function resolveVscdbPathForAttribution(): string {

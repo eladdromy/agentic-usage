@@ -183,3 +183,30 @@ export function attributeBillingEventToComposer(
   if (!ctx) return null;
   return attributeBillingEventWithContext(evt, ctx);
 }
+
+/**
+ * True when a billing event aligns with this composer's bubbles only (recent user
+ * prompt or tight agent bubble). Used for trace interaction cost so sessions are
+ * not tied to global attach `composer_id` when another tab won cross-composer
+ * attribution for the same workspace.
+ */
+export function eventAttributesToComposerStrict(
+  composerId: string,
+  eventSec: number,
+  composerBubbles: readonly GlobalBubbleStub[],
+): boolean {
+  const scoped = composerBubbles.filter((b) => b.composerId === composerId);
+  const ctx = buildContext(scoped);
+  if (!ctx) return false;
+
+  const upWinner = mostRecentUPWinner(ctx, eventSec);
+  if (
+    upWinner &&
+    upWinner.cid === composerId &&
+    eventSec - upWinner.upTime <= RECENT_UP_SEC
+  ) {
+    return true;
+  }
+
+  return tightBubbleWinner(ctx, eventSec) === composerId;
+}

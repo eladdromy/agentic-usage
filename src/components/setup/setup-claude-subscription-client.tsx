@@ -9,7 +9,7 @@ import { SetupStepCard } from "@/components/setup/setup-shell";
 import { setupSubscriptionDescription } from "@/components/setup/setup-subscription-description";
 import { useOnboardingStatus } from "@/components/setup/use-onboarding-status";
 import { nextPathAfterClaudeSubscription } from "@/lib/onboarding/navigation";
-import { CLAUDE_SETUP_STEPS } from "@/lib/onboarding/setup-steps";
+import { claudeSubscriptionProgress } from "@/lib/onboarding/setup-steps";
 
 export function SetupClaudeSubscriptionClient() {
   const router = useRouter();
@@ -28,10 +28,12 @@ export function SetupClaudeSubscriptionClient() {
     );
   }
 
+  const traceMode = status.settings.traceMode?.claude ?? "spend_only";
+
   return (
     <SetupStepCard
       className="space-y-4"
-      setupProgress={CLAUDE_SETUP_STEPS.subscription}
+      setupProgress={claudeSubscriptionProgress(traceMode)}
       title="Review Claude subscription"
       description={setupSubscriptionDescription(
         "Confirm the plan tier for each month with usage. Adjust any month where your subscription changed.",

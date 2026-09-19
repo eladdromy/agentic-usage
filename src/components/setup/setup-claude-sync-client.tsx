@@ -13,7 +13,7 @@ import { useOnboardingStatus } from "@/components/setup/use-onboarding-status";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
 import { nextPathAfterClaudeSync } from "@/lib/onboarding/navigation";
-import { CLAUDE_SETUP_STEPS } from "@/lib/onboarding/setup-steps";
+import { claudeSyncProgress } from "@/lib/onboarding/setup-steps";
 
 export function SetupClaudeSyncClient() {
   const router = useRouter();
@@ -56,10 +56,11 @@ export function SetupClaudeSyncClient() {
   const eventCount = status?.claudeEventCount ?? 0;
   const claudeHome = status?.paths.claudeHome;
   const canContinue = !syncing && eventCount > 0;
+  const traceMode = status?.settings.traceMode?.claude ?? "spend_only";
 
   return (
     <SetupStepCard
-      setupProgress={CLAUDE_SETUP_STEPS.sync}
+      setupProgress={claudeSyncProgress(traceMode)}
       title="Index Claude Code logs"
       description="We're reading your local JSONL session logs. This runs once on your machine — no data leaves your computer."
     >

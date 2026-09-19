@@ -5,6 +5,7 @@ import {
   buildProjectSyncMonthsPayload,
   dayUtcSecBounds,
 } from "@/lib/cursor/billing-project-attach";
+import { scheduleCursorTraceCostRefresh } from "@/lib/db/cursor-trace-db";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,9 @@ export async function POST(request: Request) {
       pendingOnly,
       fastPath,
     });
+    if (result.matched > 0) {
+      scheduleCursorTraceCostRefresh();
+    }
     return NextResponse.json(result);
   } catch (err) {
     const message =

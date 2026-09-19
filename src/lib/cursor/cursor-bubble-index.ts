@@ -12,6 +12,7 @@ import {
 } from "@/lib/cursor/parse-bubble-created-at";
 import type { GlobalBubbleStub } from "@/lib/cursor/billing-event-attribution";
 import {
+  composerBubbleKeyRange,
   CURSOR_DISK_KV_TABLE,
   cursorDiskKvTableExists,
   getReadonlyCursorDatabase,
@@ -79,6 +80,8 @@ function getIndexDatabase(): DatabaseConstructor.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_bubble_index_created
       ON bubble_index (created_at_sec);
+    CREATE INDEX IF NOT EXISTS idx_bubble_index_composer
+      ON bubble_index (composer_id);
   `);
   return indexConn;
 }
@@ -423,6 +426,20 @@ export function scheduleCursorBubbleIndexBuild(vscdbPath: string): void {
   void ensureCursorBubbleIndexSyncAsync(vscdbPath);
 }
 
+/** Bubble KV keys for one composer when the sidecar index is ready; otherwise `null`. */
+export function queryBubbleKeysForComposer(
+  composerId: string,
+  vscdbPath: string,
+): string[] | null {
+  if (!isCursorBubbleIndexReady(vscdbPath)) return null;
+
+  const rows = getIndexDatabase()
+    .prepare(`SELECT key FROM bubble_index WHERE composer_id = ? ORDER BY key`)
+    .all(composerId) as { key: string }[];
+
+  return rows.map((row) => row.key);
+}
+
 export function queryIndexedBubbleKeysInRange(
   fromSec: number,
   toSec: number,
@@ -466,6 +483,77 @@ export function queryIndexedBubblesInRange(
     createdAtSec: row.created_at_sec,
     bubbleType: row.bubble_type as 1 | 2,
   }));
+}
+
+export function queryIndexedBubblesForComposerInRange(
+  composerId: string,
+  fromSec: number,
+  toSec: number,
+  vscdbPath: string,
+): GlobalBubbleStub[] {
+  if (!isCursorBubbleIndexReady(vscdbPath)) return [];
+
+  const rows = getIndexDatabase()
+    .prepare(
+      `SELECT composer_id, created_at_sec, bubble_type
+       FROM bubble_index
+       WHERE composer_id = ?
+         AND created_at_sec >= ?
+         AND created_at_sec <= ?
+       ORDER BY created_at_sec ASC`,
+    )
+    .all(composerId, fromSec, toSec) as {
+    composer_id: string;
+    created_at_sec: number;
+    bubble_type: number;
+  }[];
+
+  return rows.map((row) => ({
+    composerId: row.composer_id,
+    createdAtSec: row.created_at_sec,
+    bubbleType: row.bubble_type as 1 | 2,
+  }));
+}
+
+/** Key-range scan of one composer's bubbles when the sidecar index is missing or stale. */
+export function loadComposerBubblesInRangeDirect(
+  composerId: string,
+  fromSec: number,
+  toSec: number,
+  vscdbPath: string,
+): GlobalBubbleStub[] {
+  if (!composerId.trim()) return [];
+
+  const db = getReadonlyCursorDatabase(vscdbPath);
+  if (!cursorDiskKvTableExists(db)) return [];
+
+  const roughFrom = Math.floor(fromSec);
+  const roughTo = Math.ceil(toSec);
+  const { min, max } = composerBubbleKeyRange(composerId);
+
+  const select = db.prepare(
+    `SELECT key, CAST(value AS TEXT) AS value
+     FROM ${CURSOR_DISK_KV_TABLE}
+     WHERE key >= ?
+       AND key < ?`,
+  );
+
+  const stubs: GlobalBubbleStub[] = [];
+  for (const row of select.iterate(min, max) as Iterable<{
+    key: string;
+    value: string;
+  }>) {
+    const parsed = parseBubbleRow(row.key, row.value);
+    if (
+      !parsed ||
+      parsed.createdAtSec < roughFrom ||
+      parsed.createdAtSec > roughTo
+    ) {
+      continue;
+    }
+    stubs.push(parsed);
+  }
+  return stubs;
 }
 
 /** Fallback: index seek on bubble keys, filter timestamps in JS. */
