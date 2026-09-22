@@ -36,7 +36,7 @@ Suggested flow: `both` | `claude` | `cursor` | `none`.
 - Welcome lists detected harnesses only (no explicit “setup flow” label); routing follows `suggestedFlow` from status.
 - Step content cards use `Surface` (white/card background), matching the Claude log index step.
 - Harness setup steps show a line above the step title: logo + harness name + `Setup (step/total)` — see `src/lib/onboarding/setup-steps.ts`. Totals are **mode-aware**: Claude is 3 steps spend-only / 4 with full tracing; Cursor is 4 (mode → upload → sync → subscription).
-- Each harness starts with a **mode** step ("Spend breakdown only" vs "Spend + Full Tracing") that sets `traceMode[harness]`. Cursor's full-tracing option is disabled ("Coming soon"). Choosing Claude full tracing inserts a `trace` step that runs the chunked trace index with a live progress panel (shared `TraceSyncProvider` / `runTraceSyncChunks`). See [tracing.md](./tracing.md).
+- Each harness starts with a **mode** step ("Spend breakdown only" vs "Spend + Full Tracing") that sets `traceMode[harness]`. Cursor's full-tracing option is disabled ("Coming soon"). Choosing Claude full tracing inserts a `trace` step. Indexing does not start until **Start indexing**; progress is the same dialog as Tracing (**Update trace index**), via `TraceSyncProvider` / `runTraceSyncChunks`. See [tracing.md](./tracing.md).
 - Subscription steps reuse `SubscriptionPlanReview` in `mode="onboarding"`: step title + instructions with a line break and short `Auto-detected today: …` in the description — not the Settings “Monthly plans” block.
 - Cursor CSV upload: export helpers and drop zone in a card; **Upload CSV** sits below the card in `SetupActions`.
 
@@ -48,7 +48,7 @@ Suggested flow: `both` | `claude` | `cursor` | `none`.
 | `/setup/paths` | Manual Claude home / vscdb overrides when none detected |
 | `/setup/claude/mode` | Spend-only vs Spend + Full Tracing — sets `traceMode.claude` |
 | `/setup/claude/sync` | Auto full JSONL index |
-| `/setup/claude/trace` | Full-tracing only: build the trace index with live progress; sets `onboardingClaudeTraceIndexed` |
+| `/setup/claude/trace` | Full-tracing only: **Start indexing** builds the trace index in a dialog; sets `onboardingClaudeTraceIndexed` when that job finishes |
 | `/setup/claude/subscription` | Per-month plan review + approve |
 | `/setup/cursor/offer` | Both-flow: set up Cursor or skip |
 | `/setup/cursor/mode` | Spend-only (full tracing "Coming soon") — sets `traceMode.cursor` |

@@ -9,11 +9,6 @@ import {
   SettingsSubsection,
   settingsSelectTriggerClass,
 } from "@/components/settings/settings-ui";
-import { TraceSyncProgressPanel } from "@/components/tracing/trace-sync-progress-panel";
-import {
-  runTraceSyncChunks,
-  type TraceSyncSnapshot,
-} from "@/components/tracing/trace-sync-provider";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
@@ -42,7 +37,6 @@ export function TracingSettingsControl({
     currentTraceMode[harness] ?? "spend_only",
   );
   const [saving, setSaving] = useState(false);
-  const [snapshot, setSnapshot] = useState<TraceSyncSnapshot | null>(null);
 
   async function save() {
     setSaving(true);
@@ -56,14 +50,11 @@ export function TracingSettingsControl({
       });
       if (!res.ok) throw new Error("Save failed");
 
-      if (mode === "full_tracing") {
-        try {
-          await runTraceSyncChunks(setSnapshot);
-        } catch {
-          toast.error("Trace indexing failed. You can retry from the Tracing page.");
-        }
-      }
-      toast.success("Tracing settings saved.");
+      toast.success(
+        mode === "full_tracing"
+          ? "Tracing settings saved. Open Tracing and click Update trace index to build the index."
+          : "Tracing settings saved.",
+      );
       onSaved?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
@@ -71,9 +62,6 @@ export function TracingSettingsControl({
       setSaving(false);
     }
   }
-
-  const indexing =
-    snapshot?.phase === "planning" || snapshot?.phase === "indexing";
 
   return (
     <SettingsSubsection
@@ -100,26 +88,11 @@ export function TracingSettingsControl({
           </Select>
         </div>
         <SettingsHelpText>
-          Turning on full tracing builds a one-time index of local session logs; later
-          visits only re-parse changed sessions. Turning it off keeps existing data (use
-          reset:trace to wipe).
+          Saving full tracing does not build the index. Open Tracing and click
+          Update trace index when you want to parse local session logs. Turning
+          it off keeps existing data (use reset:trace to wipe).
         </SettingsHelpText>
       </Field>
-
-      {snapshot && (indexing || snapshot.phase === "done") ? (
-        indexing ? (
-          <TraceSyncProgressPanel snapshot={snapshot} />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Trace index up to date
-            {snapshot.projects.length > 0
-              ? ` — ${snapshot.projects
-                  .reduce((sum, p) => sum + p.sessionsIndexed, 0)
-                  .toLocaleString()} sessions indexed.`
-              : "."}
-          </p>
-        )
-      ) : null}
 
       <SettingsActions>
         <Button type="button" onClick={() => void save()} disabled={saving}>

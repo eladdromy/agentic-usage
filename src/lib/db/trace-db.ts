@@ -601,7 +601,7 @@ export function queryTraceProjects(): TraceProjectRow[] {
               COALESCE(SUM(request_count), 0) AS requestCount,
               MAX(last_request_sec) AS lastRequestSec
        FROM claude_trace_sessions
-       WHERE TRIM(project_slug) != ''
+       WHERE TRIM(project_slug) != '' AND request_count > 0
        GROUP BY project_slug
        ORDER BY lastRequestSec DESC`,
     )
@@ -659,6 +659,7 @@ export function queryTraceSessions(options: {
   } else {
     conditions.push("1 = 0");
   }
+  conditions.push("request_count > 0");
   if (options.search?.trim()) {
     conditions.push("(session_id LIKE @q OR session_name LIKE @q)");
     params.q = `%${options.search.trim()}%`;

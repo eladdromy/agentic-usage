@@ -30,6 +30,14 @@ state.vscdb (cursorDiskKV bubbleId:* + composerData:*)
   → same Tracing UI
 ```
 
+Cursor agent bubbles often store thinking as `{ text, signature }` rather than a
+plain string. The indexer keeps both: the request timeline labels the row
+**thinking**, and the breakdown shows the text plus the signature when one is
+present (signature-only blocks are shown as encrypted thinking). Bubbles with no
+text, thinking, or tool payload are omitted from the request timeline.
+Composer `source_hash` includes a parser revision (`c3`) so the next
+**Update trace index** re-parses sessions indexed before that thinking fix.
+
 Parser modules under `src/lib/cursor/trace/` port Agentic_Usage behavior:
 interaction segmentation (user prompt → next user), rehydrated bubble time
 recovery, checkpoint-revert detection (orphan user bubbles), interaction mode
@@ -41,8 +49,9 @@ so parallel chats in one workspace still get costs even if project sync attribut
 rows to another composer. Costs are stored on the trace index at parse time;
 importing new CSV data triggers a cost backfill on indexed Cursor sessions
 (`refreshCursorTraceCostsFromProviderCsv`) without re-parsing bubbles. Composer
-`source_hash` uses bubble count + `composerData` size only (not global vscdb
-mtime), so opening Tracing does not re-index after routine Cursor usage.
+`source_hash` is bubble count + `composerData` size + parser revision (not
+global vscdb mtime), so opening Tracing does not re-index after routine Cursor
+usage. A parser revision change re-parses on the next **Update trace index**.
 
 ## Parser (`src/lib/claude/trace/`)
 
@@ -87,8 +96,8 @@ Own better-sqlite3 singleton on `.data/claude-trace.db`. Tables:
 - **Global gate** — `ensureTraceSynced()` no-ops when the newest discovered file
   mtime hasn't advanced past `source_mtime_watermark`.
 - **Per-session skip** — each session stores a `source_hash` (mtime). Only
-  new/changed root session files are re-parsed. The **first run is the only full
-  pass**; later visits only touch changed sessions.
+  new/changed root session files are re-parsed. The **first Update is the only full
+  pass**; later **Update trace index** runs only touch changed sessions.
 - **Replace-in-transaction** — a changed session's rows are deleted and
   re-inserted in one transaction (idempotent).
 
@@ -118,9 +127,13 @@ yields to the event loop so `npm run dev` stays responsive.
 
 ## UI (`src/app/(app)/tracing/`, `src/components/tracing/`)
 
-- `tracing-explorer.tsx` — projects list.
+- `tracing-explorer.tsx` — projects list. A project is listed only when it has
+  at least one session with requests. Spawned Cursor subagents stay nested
+  under the parent interaction; their placeholder rows are not sessions.
+  Composers with no requests (empty chats, drafts) are omitted.
 - `trace-sessions-client.tsx` + `trace-sessions-table.tsx` — per-project session
-  list with search, sort, infinite scroll, and a cost cell.
+  list with search, sort, infinite scroll, and a cost cell. Same filter:
+  `request_count > 0` only.
 - `session-trace-panel.tsx` — three columns: `interaction-column.tsx`,
   `request-column.tsx`, `request-breakdown-column.tsx` (text / thinking / tool
   params + results). Selection is tracked by part `timelineId`; the breakdown is
@@ -145,17 +158,24 @@ cost — billed model id), then the **previous interaction’s** model when CSV 
 no rows (Cursor often omits `modelInfo` on follow-up user prompts; Agentic_Usage
 composer detail uses user-bubble `modelInfo` only for the label).
 
-### First-run status UX
+### On-demand index UX
 
-`trace-sync-provider.tsx` wraps the tracing routes (`layout.tsx`). On entry it
-calls `GET /api/tracing/sync/plan`, then indexes changed projects via sequential
-`POST /api/tracing/sync` calls in **small chunks** (8 Claude sessions / 4 Cursor
-composers per request) so large projects stay responsive, showing
-`trace-sync-progress-panel.tsx`
-("Parsing sessions X / Y…"). When nothing changed it resolves instantly. If every in-scope harness is still
-`spend_only`, the plan is empty and the explorer shows that full tracing must be
-**saved** in Settings (changing the dropdown alone is not enough).
-`runTraceSyncChunks()` is the shared routine reused by onboarding and settings.
+Opening `/tracing` never indexes logs. The projects list and session pages query
+the existing SQLite index immediately (`GET /api/tracing/projects` and
+`GET /api/tracing/sessions`).
+
+`trace-sync-provider.tsx` wraps the tracing routes (`layout.tsx`) and onboarding
+trace step, but **does not** start a job on mount. **Update trace index** on the
+projects list (and **Start indexing** during onboarding) calls
+`startTraceSync()`, which runs `runTraceSyncChunks()`: `GET /api/tracing/sync/plan`,
+then sequential `POST /api/tracing/sync` in **small chunks** (8 Claude sessions /
+4 Cursor composers per request). Progress is `trace-sync-progress-panel.tsx`
+inside `trace-sync-modal.tsx` (non-dismissible until `done` or `error`; the
+project list scrolls inside a `max-h` dialog so a long index stays on screen). When
+nothing changed the job finishes immediately. If every in-scope harness is still
+`spend_only`, the explorer disables the button and says full tracing must be
+**saved** in Settings first. Saving the setting does not index; the user still
+clicks **Update trace index**. Project and session routes have no sync UI.
 
 ## `traceMode` (onboarding + settings)
 
@@ -174,8 +194,8 @@ whether trace indexing runs for a harness.
     block onboarding completion.
 - **Settings** (`src/components/settings/tracing-settings-control.tsx`): a per-
   harness Tracing control (Spend only / Full tracing) persisted via
-  `PUT /api/settings`. Turning Claude on triggers the chunked build with the same
-  progress panel. Cursor is shown disabled.
+  `PUT /api/settings`. Saving full tracing does not index. Build or refresh the
+  index from Tracing with **Update trace index**. Cursor is shown disabled.
 
 ## Reset
 
@@ -183,4 +203,5 @@ whether trace indexing runs for a harness.
 `claude-trace.db` and `cursor-trace.db` (+ `-wal`/`-shm`). It never touches your
 real logs, `agentic-usage.db`, the other Cursor databases, or `settings.json`.
 Stop the dev server first. Rebuild requires `traceMode` set to `full_tracing`
-(and saved) for each harness you index; then open Tracing to run the sync pass.
+(and saved) for each harness you index; then open Tracing and click
+**Update trace index**.

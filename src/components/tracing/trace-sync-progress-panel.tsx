@@ -37,8 +37,11 @@ function ProjectStatusIcon({ status }: { status: TraceSyncProjectState["status"]
 
 export function TraceSyncProgressPanel({
   snapshot,
+  embedded = false,
 }: {
   snapshot: TraceSyncSnapshot;
+  /** Skip the card chrome when the panel sits inside a dialog. */
+  embedded?: boolean;
 }) {
   const { phase, projects, totalChangedFiles, indexedFiles } = snapshot;
 
@@ -47,13 +50,32 @@ export function TraceSyncProgressPanel({
       ? "Scanning local session logs…"
       : phase === "error"
         ? "Trace indexing finished with errors"
-        : `Parsing sessions ${indexedFiles.toLocaleString()} / ${totalChangedFiles.toLocaleString()}…`;
+        : phase === "done"
+          ? "Trace index up to date"
+          : `Parsing sessions ${indexedFiles.toLocaleString()} / ${totalChangedFiles.toLocaleString()}…`;
 
-  return (
-    <Surface className="space-y-4 p-5">
-      <div className="flex items-center gap-3">
+  const subtitle =
+    phase === "planning"
+      ? "Counting sessions to index (Cursor can take ~20s the first time). Parsing runs in small batches afterward."
+      : phase === "done"
+        ? totalChangedFiles === 0
+          ? "No new or changed sessions needed indexing."
+          : `Indexed ${indexedFiles.toLocaleString()} of ${totalChangedFiles.toLocaleString()} changed sessions.`
+        : phase === "error"
+          ? "Indexing stopped before every changed session was parsed."
+          : "Indexing in small batches. The counter should tick every few seconds.";
+
+  const body = (
+    <>
+      <div className="flex shrink-0 items-center gap-3">
         {phase === "error" ? (
           <CircleX size={18} className="text-destructive" aria-hidden="true" />
+        ) : phase === "done" ? (
+          <CircleCheck
+            size={18}
+            className="text-emerald-600 dark:text-emerald-400"
+            aria-hidden="true"
+          />
         ) : (
           <LoaderCircle
             size={18}
@@ -63,11 +85,7 @@ export function TraceSyncProgressPanel({
         )}
         <div>
           <p className="text-sm font-medium">{title}</p>
-          <p className="text-sm text-muted-foreground">
-            {phase === "planning"
-              ? "Counting sessions to index (Cursor can take ~20s the first time). Parsing runs in small batches afterward."
-              : "Indexing in small batches. The counter should tick every few seconds."}
-          </p>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
       </div>
 
@@ -78,7 +96,14 @@ export function TraceSyncProgressPanel({
       ) : null}
 
       {projects.length > 0 ? (
-        <ul className="space-y-2" aria-live="polite">
+        <ul
+          className={
+            embedded
+              ? "min-h-0 flex-1 space-y-2 overflow-y-auto"
+              : "space-y-2"
+          }
+          aria-live="polite"
+        >
           {projects.map((project) => (
             <li
               key={`${project.harness}-${project.projectKey}`}
@@ -97,6 +122,12 @@ export function TraceSyncProgressPanel({
           ))}
         </ul>
       ) : null}
-    </Surface>
+    </>
   );
+
+  if (embedded) {
+    return <div className="flex min-h-0 flex-1 flex-col gap-4">{body}</div>;
+  }
+
+  return <Surface className="space-y-4 p-5">{body}</Surface>;
 }

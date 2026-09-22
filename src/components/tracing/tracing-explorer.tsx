@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, LoaderCircle, RefreshCw, Search } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { TracingExplorerSkeleton } from "@/components/layout/page-loading-skeletons";
-import { TraceSyncProgressPanel } from "@/components/tracing/trace-sync-progress-panel";
 import { useTraceSync } from "@/components/tracing/trace-sync-provider";
+import { Button } from "@/components/ui/button";
 import {
   InputGroup,
   InputGroupAddon,
@@ -36,12 +36,13 @@ function relativeFromSec(sec: number | null): string {
 
 export function TracingExplorer() {
   const { activeHarness } = useRouteSync();
-  const { snapshot, version } = useTraceSync();
+  const { startTraceSync, syncing } = useTraceSync();
   const [projects, setProjects] = useState<TraceProject[] | null>(null);
   const [indexingEnabled, setIndexingEnabled] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchProjects = useCallback(async () => {
     const res = await fetch("/api/tracing/projects");
@@ -53,8 +54,6 @@ export function TracingExplorer() {
   }, []);
 
   useEffect(() => {
-    // Wait for the initial index pass so the list reflects freshly parsed logs.
-    if (snapshot.phase !== "done" && snapshot.phase !== "error") return;
     let cancelled = false;
 
     async function run() {
@@ -79,9 +78,7 @@ export function TracingExplorer() {
     return () => {
       cancelled = true;
     };
-  }, [fetchProjects, version, snapshot.phase]);
-
-  const indexing = snapshot.phase === "planning" || snapshot.phase === "indexing";
+  }, [fetchProjects, refreshKey, activeHarness]);
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -105,19 +102,37 @@ export function TracingExplorer() {
               ? "Projects with the same folder path are combined; harness icons show which logs are indexed."
               : "Explore Claude Code sessions by project."
         }
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            disabled={syncing || indexingEnabled === false}
+            onClick={() => {
+              void startTraceSync({
+                onComplete: () => setRefreshKey((key) => key + 1),
+              });
+            }}
+          >
+            {syncing ? (
+              <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <RefreshCw size={16} aria-hidden="true" />
+            )}
+            Update trace index
+          </Button>
+        }
       />
 
-      {indexing ? <TraceSyncProgressPanel snapshot={snapshot} /> : null}
-
-      {!indexing && snapshot.tracingDisabled ? (
+      {indexingEnabled === false ? (
         <Surface className="p-5 text-sm text-muted-foreground">
           <p className="font-medium text-foreground">Full tracing is off</p>
           <p className="mt-1">
             Session indexing only runs when you choose{" "}
             <span className="text-foreground">Full tracing</span> in Settings and
             click <span className="text-foreground">Save tracing settings</span>{" "}
-            for each harness you use. After reset, the index rebuilds automatically
-            once full tracing is saved.
+            for each harness you use. After that, click{" "}
+            <span className="text-foreground">Update trace index</span> to build
+            or refresh the index.
           </p>
         </Surface>
       ) : null}
@@ -128,9 +143,9 @@ export function TracingExplorer() {
         </p>
       ) : null}
 
-      {!indexing && (loading || projects == null) ? (
+      {loading || projects == null ? (
         <TracingExplorerSkeleton />
-      ) : !indexing ? (
+      ) : (
         <div className="section-stack">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
             <InputGroup className="h-9 w-full max-w-sm rounded-xl border-border/60 bg-card/80">
@@ -155,10 +170,8 @@ export function TracingExplorer() {
               {search.trim()
                 ? "No projects match your search."
                 : indexingEnabled === false
-                  ? "Turn on full tracing in Settings (and save) to build the trace index."
-                  : snapshot.phase === "done" && snapshot.totalChangedFiles === 0
-                    ? "Trace index is up to date — no sessions matched your harness filter or local logs yet."
-                    : "No sessions indexed yet. If you just enabled full tracing, wait for indexing to finish or check Settings."}
+                  ? "Turn on full tracing in Settings (and save) to enable the trace index."
+                  : "No sessions indexed yet. Click Update trace index to parse local session logs."}
             </Surface>
           ) : (
             <Surface className="overflow-hidden">
@@ -238,7 +251,7 @@ export function TracingExplorer() {
             </Surface>
           )}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

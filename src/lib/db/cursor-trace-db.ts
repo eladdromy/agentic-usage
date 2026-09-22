@@ -30,6 +30,7 @@ import { parseComposerFromDb } from "@/lib/cursor/trace/composer-parse";
 import { extractAllSpawnedComposerIds } from "@/lib/cursor/trace/subagent-dispatch";
 import type { ParsedCursorComposer } from "@/lib/cursor/trace/types";
 import type {
+  TraceContentPart,
   TraceSubagentBranchMeta,
   TraceTimelinePart,
 } from "@/lib/tracing-shared";
@@ -150,7 +151,9 @@ function composerContentFingerprint(
     .prepare(`SELECT CAST(value AS TEXT) AS value FROM ${CURSOR_DISK_KV_TABLE} WHERE key = ?`)
     .get(`composerData:${composerId}`) as { value: string } | undefined;
   const len = dataRow?.value?.length ?? 0;
-  return `${countRow.c}:${len}`;
+  // `c2` bumps the parser (thinking objects `{ text, signature }`) so the next
+  // Update re-parses composers indexed before that fix.
+  return `${countRow.c}:${len}:c3`;
 }
 
 function storedComposerHashMatches(
@@ -872,6 +875,7 @@ export function queryCursorTraceProjects(): CursorTraceProjectRow[] {
               COALESCE(SUM(request_count), 0) AS requestCount,
               MAX(last_request_sec) AS lastRequestSec
        FROM cursor_trace_sessions
+       WHERE request_count > 0
        GROUP BY project_path
        ORDER BY lastRequestSec DESC`,
     )
@@ -905,7 +909,7 @@ export function queryCursorTraceSessions(options: {
   limit: number;
 }): { rows: CursorTraceSessionRow[]; total: number } {
   const db = getCursorTraceDatabase();
-  const conditions = ["project_path = @projectPath"];
+  const conditions = ["project_path = @projectPath", "request_count > 0"];
   const params: Record<string, string | number> = { projectPath: options.projectPath };
   if (options.search?.trim()) {
     conditions.push("(composer_id LIKE @q OR session_name LIKE @q)");
@@ -1088,19 +1092,6 @@ function explodeCursorRow(row: CursorRequestDbRow, subagentByParent: Map<string,
     }
     idx += 1;
   }
-  if (parts.length === 0) {
-    parts.push({
-      timelineId: `${id}#row`,
-      requestId: id,
-      role: "Agent",
-      kind: "text",
-      kindLabel: "text",
-      createdSec,
-      textPreview: null,
-      toolUseId: null,
-      subagent: null,
-    });
-  }
   return parts;
 }
 
@@ -1148,6 +1139,21 @@ export function listCursorInteractionRequests(
   return timeline;
 }
 
+function storedThinkingValue(value: unknown): Extract<TraceContentPart, { kind: "thinking" }>["value"] {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  const signature =
+    typeof record.signature === "string" && record.signature.trim()
+      ? record.signature.trim()
+      : null;
+  if (record.encrypted === true) return { encrypted: true, signature };
+  if (typeof record.text === "string") {
+    return signature ? { text: record.text, signature } : record.text;
+  }
+  return "";
+}
+
 export function getCursorRequestBreakdown(requestId: number) {
   const row = getCursorTraceDatabase()
     .prepare(
@@ -1188,7 +1194,7 @@ export function getCursorRequestBreakdown(requestId: number) {
     content: content.map((part) => {
       const p = part as Record<string, unknown>;
       if (p.kind === "text") return { kind: "text" as const, value: String(p.value ?? "") };
-      if (p.kind === "thinking") return { kind: "thinking" as const, value: String(p.value ?? "") };
+      if (p.kind === "thinking") return { kind: "thinking" as const, value: storedThinkingValue(p.value) };
       return {
         kind: "tool_use" as const,
         toolUseId: (p.toolCallId as string | null) ?? null,

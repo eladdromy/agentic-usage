@@ -46,6 +46,30 @@ export function toolNamesFromContent(parts: CursorTraceContentPart[]): string[] 
   return names;
 }
 
+/** Cursor stores thinking as a string or as `{ text, signature }`. */
+function thinkingPart(value: unknown): CursorTraceContentPart | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? { kind: "thinking", value: trimmed } : null;
+  }
+  if (!isPlainObject(value)) return null;
+  const text = typeof value.text === "string" ? value.text.trim() : "";
+  const signature =
+    typeof value.signature === "string" && value.signature.trim()
+      ? value.signature.trim()
+      : null;
+  if (text && signature) return { kind: "thinking", value: { text, signature } };
+  if (text) return { kind: "thinking", value: text };
+  if (signature) return { kind: "thinking", value: { encrypted: true, signature } };
+  return null;
+}
+
+function thinkingPreviewText(value: CursorTraceContentPart & { kind: "thinking" }): string {
+  if (typeof value.value === "string") return value.value;
+  if ("text" in value.value) return value.value.text;
+  return "";
+}
+
 export function extractBubbleContentParts(
   parsed: Record<string, unknown>,
 ): CursorTraceContentPart[] {
@@ -53,9 +77,8 @@ export function extractBubbleContentParts(
   if (hasPresentValue(parsed.text) && typeof parsed.text === "string") {
     out.push({ kind: "text", value: parsed.text });
   }
-  if (hasPresentValue(parsed.thinking) && typeof parsed.thinking === "string") {
-    out.push({ kind: "thinking", value: parsed.thinking });
-  }
+  const thinking = thinkingPart(parsed.thinking);
+  if (thinking) out.push(thinking);
   for (const entry of normalizeToolFormerEntries(parsed.toolFormerData)) {
     const name = strOrNull(entry.name) ?? "tool";
     out.push({
@@ -114,9 +137,14 @@ export function previewFromParts(parts: CursorTraceContentPart[]): string {
     }
   }
   for (const part of parts) {
+    if (part.kind === "thinking") {
+      const text = thinkingPreviewText(part).replace(/\s+/g, " ").trim();
+      if (text) return text.slice(0, 160);
+    }
+  }
+  for (const part of parts) {
     if (part.kind === "tool") return part.name;
   }
-  if (parts.some((p) => p.kind === "thinking")) return "Thinking";
   return "Agent";
 }
 

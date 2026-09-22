@@ -4,12 +4,13 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+
+import { TraceSyncModal } from "@/components/tracing/trace-sync-modal";
 
 export type TraceSyncPhase = "idle" | "planning" | "indexing" | "done" | "error";
 
@@ -45,10 +46,14 @@ type TraceSyncPlanResponse = {
   indexingEnabled?: boolean;
 };
 
+export type StartTraceSyncOptions = {
+  onComplete?: () => void;
+};
+
 type TraceSyncContextValue = {
-  snapshot: TraceSyncSnapshot;
-  version: number;
-  rerun: () => void;
+  startTraceSync: (options?: StartTraceSyncOptions) => Promise<void>;
+  syncing: boolean;
+  syncSnapshot: TraceSyncSnapshot | null;
 };
 
 const IDLE: TraceSyncSnapshot = {
@@ -299,51 +304,64 @@ export async function runTraceSyncChunks(
   });
 }
 
-const TraceSyncContext = createContext<TraceSyncContextValue>({
-  snapshot: IDLE,
-  version: 0,
-  rerun: () => {},
-});
+const TraceSyncContext = createContext<TraceSyncContextValue | null>(null);
 
 export function TraceSyncProvider({ children }: { children: ReactNode }) {
-  const [snapshot, setSnapshot] = useState<TraceSyncSnapshot>(IDLE);
-  const [version, setVersion] = useState(0);
-  const running = useRef(false);
+  const [syncing, setSyncing] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [syncSnapshot, setSyncSnapshot] = useState<TraceSyncSnapshot | null>(null);
+  const activeRun = useRef<Promise<void> | null>(null);
 
-  const run = useCallback(async () => {
-    if (running.current) return;
-    running.current = true;
-    try {
-      await runTraceSyncChunks(setSnapshot);
-      setVersion((v) => v + 1);
-    } catch (error) {
-      setSnapshot((prev) => ({
-        ...prev,
-        phase: "error",
-        error: error instanceof Error ? error.message : "Trace sync failed",
-      }));
-      setVersion((v) => v + 1);
-    } finally {
-      running.current = false;
-    }
+  const startTraceSync = useCallback((options: StartTraceSyncOptions = {}) => {
+    if (activeRun.current) return activeRun.current;
+
+    activeRun.current = (async () => {
+      setSyncing(true);
+      setModalOpen(true);
+      setSyncSnapshot({ ...IDLE, phase: "planning" });
+      try {
+        await runTraceSyncChunks(setSyncSnapshot);
+        options.onComplete?.();
+      } catch (error) {
+        setSyncSnapshot((prev) => ({
+          ...(prev ?? IDLE),
+          phase: "error",
+          error: error instanceof Error ? error.message : "Trace sync failed",
+        }));
+      } finally {
+        setSyncing(false);
+        activeRun.current = null;
+      }
+    })();
+
+    return activeRun.current;
   }, []);
 
-  useEffect(() => {
-    void run();
-  }, [run]);
+  const handleModalClose = useCallback(() => {
+    setModalOpen(false);
+  }, []);
 
   const value = useMemo(
-    () => ({ snapshot, version, rerun: () => void run() }),
-    [snapshot, version, run],
+    () => ({ startTraceSync, syncing, syncSnapshot }),
+    [startTraceSync, syncing, syncSnapshot],
   );
 
   return (
     <TraceSyncContext.Provider value={value}>
       {children}
+      <TraceSyncModal
+        open={modalOpen}
+        snapshot={syncSnapshot}
+        onClose={handleModalClose}
+      />
     </TraceSyncContext.Provider>
   );
 }
 
 export function useTraceSync(): TraceSyncContextValue {
-  return useContext(TraceSyncContext);
+  const ctx = useContext(TraceSyncContext);
+  if (!ctx) {
+    throw new Error("useTraceSync must be used within TraceSyncProvider");
+  }
+  return ctx;
 }

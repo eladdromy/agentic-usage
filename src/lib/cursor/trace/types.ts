@@ -2,7 +2,13 @@ import type { CursorInteractionMode } from "./interaction-mode";
 
 export type CursorTraceContentPart =
   | { kind: "text"; value: string }
-  | { kind: "thinking"; value: string }
+  | {
+      kind: "thinking";
+      value:
+        | string
+        | { text: string; signature: string | null }
+        | { encrypted: true; signature: string | null };
+    }
   | {
       kind: "tool";
       name: string;

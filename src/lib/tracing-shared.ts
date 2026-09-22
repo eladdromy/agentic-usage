@@ -5,7 +5,13 @@
 
 export type TraceContentPart =
   | { kind: "text"; value: string }
-  | { kind: "thinking"; value: string | { encrypted: true; signature: string | null } }
+  | {
+      kind: "thinking";
+      value:
+        | string
+        | { text: string; signature: string | null }
+        | { encrypted: true; signature: string | null };
+    }
   | { kind: "tool_use"; toolUseId: string | null; name: string; input: unknown }
   | {
       kind: "tool_result";

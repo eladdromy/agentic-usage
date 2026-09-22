@@ -6,7 +6,6 @@ import { ArrowLeft, LoaderCircle, Search } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { TracingSessionsSkeleton } from "@/components/layout/page-loading-skeletons";
-import { useTraceSync } from "@/components/tracing/trace-sync-provider";
 import { TraceSessionsTable } from "@/components/tracing/trace-sessions-table";
 import {
   InputGroup,
@@ -41,7 +40,6 @@ const SORT_OPTIONS = [
 ] as const;
 
 export function TraceSessionsClient({ projectKey }: { projectKey: string }) {
-  const { snapshot, version } = useTraceSync();
   const [data, setData] = useState<SessionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -66,7 +64,6 @@ export function TraceSessionsClient({ projectKey }: { projectKey: string }) {
   );
 
   useEffect(() => {
-    if (snapshot.phase !== "done" && snapshot.phase !== "error") return;
     let cancelled = false;
 
     async function run() {
@@ -88,7 +85,7 @@ export function TraceSessionsClient({ projectKey }: { projectKey: string }) {
     return () => {
       cancelled = true;
     };
-  }, [buildUrl, version, snapshot.phase]);
+  }, [buildUrl]);
 
   const hasMore = data ? data.rows.length < data.total : false;
 
@@ -124,8 +121,7 @@ export function TraceSessionsClient({ projectKey }: { projectKey: string }) {
     return () => observer.disconnect();
   }, [hasMore, loadMore]);
 
-  const indexing = snapshot.phase === "planning" || snapshot.phase === "indexing";
-  const isInitialLoad = !indexing && (loading || data == null);
+  const isInitialLoad = loading || data == null;
 
   const description = useMemo(() => {
     if (!data) return undefined;

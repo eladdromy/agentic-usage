@@ -53,18 +53,34 @@ function PartView({ part }: { part: TraceContentPart }) {
   }
 
   if (part.kind === "thinking") {
+    const value = part.value;
+    const plaintext = typeof value === "string" ? value : "text" in value ? value.text : null;
+    const signature =
+      typeof value === "string" ? null : value.signature;
+    const encrypted = typeof value !== "string" && "encrypted" in value && value.encrypted;
+
     return (
-      <div className="space-y-1.5">
-        <SectionLabel>Thinking</SectionLabel>
-        {typeof part.value === "string" ? (
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-muted-foreground italic">
-            {part.value}
-          </p>
-        ) : (
-          <p className="text-xs text-muted-foreground italic">
-            Encrypted thinking block{part.value.signature ? " (signed)" : ""}.
-          </p>
-        )}
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <SectionLabel>Thinking</SectionLabel>
+          {plaintext ? (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-muted-foreground italic">
+              {plaintext}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">
+              {encrypted ? "Encrypted thinking block." : "No thinking text."}
+            </p>
+          )}
+        </div>
+        {signature ? (
+          <div className="space-y-1.5">
+            <SectionLabel>Signature</SectionLabel>
+            <pre className="max-h-40 overflow-auto rounded-lg border border-border/60 bg-muted/40 p-3 text-xs leading-relaxed break-all whitespace-pre-wrap">
+              {signature}
+            </pre>
+          </div>
+        ) : null}
       </div>
     );
   }
