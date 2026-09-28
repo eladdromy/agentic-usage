@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, LoaderCircle, Search } from "lucide-react";
 
+import { useRouteSync } from "@/components/layout/route-sync";
 import { PageHeader } from "@/components/page-header";
 import { TracingSessionsSkeleton } from "@/components/layout/page-loading-skeletons";
 import { TraceSessionsTable } from "@/components/tracing/trace-sessions-table";
@@ -18,6 +19,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import type { ActiveHarness } from "@/lib/profile/settings";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import type { TraceSession } from "@/lib/tracing-shared";
 
@@ -40,7 +42,9 @@ const SORT_OPTIONS = [
 ] as const;
 
 export function TraceSessionsClient({ projectKey }: { projectKey: string }) {
+  const { activeHarness } = useRouteSync();
   const [data, setData] = useState<SessionsResponse | null>(null);
+  const [dataHarness, setDataHarness] = useState<ActiveHarness | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +53,7 @@ export function TraceSessionsClient({ projectKey }: { projectKey: string }) {
   const [sort, setSort] = useState("last_request");
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
+  const fetchGen = useRef(0);
 
   const buildUrl = useCallback(
     (offset: number, limit: number) => {
@@ -64,20 +69,29 @@ export function TraceSessionsClient({ projectKey }: { projectKey: string }) {
   );
 
   useEffect(() => {
+    const gen = ++fetchGen.current;
+    const harness = activeHarness;
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
     let cancelled = false;
 
     async function run() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(buildUrl(0, PAGE_SIZE));
+        const res = await fetch(buildUrl(0, PAGE_SIZE), { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load sessions");
         const json = (await res.json()) as SessionsResponse;
-        if (!cancelled) setData(json);
+        if (!cancelled && gen === fetchGen.current) {
+          setData(json);
+          setDataHarness(harness);
+        }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load");
+        if (!cancelled && gen === fetchGen.current) {
+          setError(err instanceof Error ? err.message : "Failed to load");
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && gen === fetchGen.current) setLoading(false);
       }
     }
 
@@ -85,28 +99,34 @@ export function TraceSessionsClient({ projectKey }: { projectKey: string }) {
     return () => {
       cancelled = true;
     };
-  }, [buildUrl]);
+  }, [buildUrl, activeHarness]);
 
   const hasMore = data ? data.rows.length < data.total : false;
 
   const loadMore = useCallback(async () => {
     if (!data || loading || !hasMore || loadingMoreRef.current) return;
+    if (dataHarness !== activeHarness) return;
+    const gen = fetchGen.current;
     loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
-      const res = await fetch(buildUrl(data.rows.length, PAGE_MORE));
+      const res = await fetch(buildUrl(data.rows.length, PAGE_MORE), { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to load more sessions");
       const json = (await res.json()) as SessionsResponse;
+      if (gen !== fetchGen.current) return;
       setData((prev) =>
         prev ? { ...json, rows: [...prev.rows, ...json.rows] } : json,
       );
     } catch (err) {
+      if (gen !== fetchGen.current) return;
       setError(err instanceof Error ? err.message : "Failed to load more");
     } finally {
-      loadingMoreRef.current = false;
-      setLoadingMore(false);
+      if (gen === fetchGen.current) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
-  }, [buildUrl, data, hasMore, loading]);
+  }, [activeHarness, buildUrl, data, dataHarness, hasMore, loading]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -121,7 +141,8 @@ export function TraceSessionsClient({ projectKey }: { projectKey: string }) {
     return () => observer.disconnect();
   }, [hasMore, loadMore]);
 
-  const isInitialLoad = loading || data == null;
+  const harnessMismatch = dataHarness != null && dataHarness !== activeHarness;
+  const isInitialLoad = loading || data == null || harnessMismatch;
 
   const description = useMemo(() => {
     if (!data) return undefined;

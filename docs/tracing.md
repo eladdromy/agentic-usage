@@ -133,7 +133,9 @@ yields to the event loop so `npm run dev` stays responsive.
   Composers with no requests (empty chats, drafts) are omitted.
 - `trace-sessions-client.tsx` + `trace-sessions-table.tsx` — per-project session
   list with search, sort, infinite scroll, and a cost cell. Same filter:
-  `request_count > 0` only.
+  `request_count > 0` only. The list follows the navbar harness
+  (`useRouteSync().activeHarness`): switching Claude, Cursor, or All refetches
+  `GET /api/tracing/sessions`, which filters by the saved `activeHarness`.
 - `session-trace-panel.tsx` — three columns: `interaction-column.tsx`,
   `request-column.tsx`, `request-breakdown-column.tsx` (text / thinking / tool
   params + results). Selection is tracked by part `timelineId`; the breakdown is
