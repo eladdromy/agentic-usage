@@ -22,6 +22,7 @@ import { useRouteSync } from "@/components/layout/route-sync";
 import { PageHeader } from "@/components/page-header";
 import { HarnessSettingsCard } from "@/components/settings/harness-settings-card";
 import { SubscriptionPlanSettings } from "@/components/settings/subscription-plan-settings";
+import { TracingSettingsControl } from "@/components/settings/tracing-settings-control";
 import {
   SettingsActions,
   SettingsCard,
@@ -552,6 +553,12 @@ export function SettingsPageClient() {
                     </SettingsActions>
                   </form>
                 </SettingsSubsection>
+
+                <TracingSettingsControl
+                  harness="claude"
+                  currentTraceMode={profile?.settings.traceMode ?? {}}
+                  onSaved={loadProfile}
+                />
               </HarnessSettingsCard>
             ) : null}
 
@@ -581,6 +588,12 @@ export function SettingsPageClient() {
                     value={profile?.cursorLastSyncAt ?? "Never"}
                   />
                 </SettingsInfoList>
+
+                <TracingSettingsControl
+                  harness="cursor"
+                  currentTraceMode={profile?.settings.traceMode ?? {}}
+                  onSaved={loadProfile}
+                />
               </HarnessSettingsCard>
             ) : null}
           </div>

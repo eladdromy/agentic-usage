@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { BarChart3, FolderKanban, LoaderCircle, Receipt, Settings } from "lucide-react";
+import { BarChart3, FolderKanban, LoaderCircle, Receipt, Settings, Waypoints } from "lucide-react";
 
 import { CursorSetupBannerGate } from "@/components/cursor/cursor-setup-banner-gate";
 import { AppBrand } from "@/components/brand/app-brand";
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/leverage", label: "Plan Leverage", icon: BarChart3 },
   { href: "/projects-breakdown", label: "Projects", icon: FolderKanban },
   { href: "/raw-spend", label: "Spend Logs", icon: Receipt },
+  { href: "/tracing", label: "Tracing", icon: Waypoints },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

@@ -9,7 +9,7 @@ export function PageHeader({
   action,
   className,
 }: {
-  eyebrow?: string;
+  eyebrow?: ReactNode;
   title: string;
   description?: ReactNode;
   action?: ReactNode;
@@ -18,9 +18,13 @@ export function PageHeader({
   return (
     <header className={cn("space-y-4 pb-2", className)}>
       {eyebrow ? (
-        <p className="text-sm font-medium tracking-wide text-primary uppercase">
-          {eyebrow}
-        </p>
+        typeof eyebrow === "string" ? (
+          <p className="text-sm font-medium tracking-wide text-primary uppercase">
+            {eyebrow}
+          </p>
+        ) : (
+          eyebrow
+        )
       ) : null}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-3">

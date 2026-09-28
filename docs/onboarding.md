@@ -35,7 +35,8 @@ Suggested flow: `both` | `claude` | `cursor` | `none`.
 
 - Welcome lists detected harnesses only (no explicit “setup flow” label); routing follows `suggestedFlow` from status.
 - Step content cards use `Surface` (white/card background), matching the Claude log index step.
-- Harness setup steps show a line above the step title: logo + harness name + `Setup (step/total)` — see `src/lib/onboarding/setup-steps.ts` (Claude: 2 steps, Cursor: 3).
+- Harness setup steps show a line above the step title: logo + harness name + `Setup (step/total)` — see `src/lib/onboarding/setup-steps.ts`. Totals are **mode-aware**: Claude is 3 steps spend-only / 4 with full tracing; Cursor is 4 (mode → upload → sync → subscription).
+- Each harness starts with a **mode** step ("Spend breakdown only" vs "Spend + Full Tracing") that sets `traceMode[harness]`. Cursor's full-tracing option is disabled ("Coming soon"). Choosing Claude full tracing inserts a `trace` step. Indexing does not start until **Start indexing**; progress is the same dialog as Tracing (**Update trace index**), via `TraceSyncProvider` / `runTraceSyncChunks`. See [tracing.md](./tracing.md).
 - Subscription steps reuse `SubscriptionPlanReview` in `mode="onboarding"`: step title + instructions with a line break and short `Auto-detected today: …` in the description — not the Settings “Monthly plans” block.
 - Cursor CSV upload: export helpers and drop zone in a card; **Upload CSV** sits below the card in `SetupActions`.
 
@@ -45,9 +46,12 @@ Suggested flow: `both` | `claude` | `cursor` | `none`.
 |-------|---------|
 | `/setup` | Welcome + detected harness summary |
 | `/setup/paths` | Manual Claude home / vscdb overrides when none detected |
+| `/setup/claude/mode` | Spend-only vs Spend + Full Tracing — sets `traceMode.claude` |
 | `/setup/claude/sync` | Auto full JSONL index |
+| `/setup/claude/trace` | Full-tracing only: **Start indexing** builds the trace index in a dialog; sets `onboardingClaudeTraceIndexed` when that job finishes |
 | `/setup/claude/subscription` | Per-month plan review + approve |
 | `/setup/cursor/offer` | Both-flow: set up Cursor or skip |
+| `/setup/cursor/mode` | Spend-only (full tracing "Coming soon") — sets `traceMode.cursor` |
 | `/setup/cursor/upload` | Billing CSV upload (**does not** start project sync). Loads local activity dates in a card (spinner → export actions + upload). When `state.vscdb` is present, suggests `from` = earliest local composer activity and `to` = today UTC via `GET /api/cursor/local-export-suggestion` — **Download usage** (direct CSV API) and **Open dashboard** |
 | `/setup/cursor/sync` | Project attach — **required** after upload; auto-starts background sync |
 | `/setup/cursor/subscription` | Per-month plan review + approve |
@@ -55,9 +59,9 @@ Suggested flow: `both` | `claude` | `cursor` | `none`.
 
 ## Branching flows
 
-**Claude only:** sync → subscription → complete
+**Claude only:** mode → sync → (trace, if full tracing) → subscription → complete
 
-**Cursor only:** upload → sync → subscription → complete
+**Cursor only:** mode → upload → sync → subscription → complete
 
 **Both:** Claude path → offer → (Cursor path or skip). Finalize at `/setup/complete` sets `activeHarness` to `all` when both harnesses are ready.
 
@@ -73,7 +77,9 @@ onboardingCompletedAt: string | null;
 onboardingClaudeSubscriptionApproved: boolean;
 onboardingCursorSubscriptionApproved: boolean;
 onboardingCursorProjectSyncDone: boolean;
+onboardingClaudeTraceIndexed: boolean;
 onboardingDeferredCursor: boolean;
+traceMode: Partial<Record<"claude" | "cursor", "spend_only" | "full_tracing">>;
 ```
 
 ## Key source files
