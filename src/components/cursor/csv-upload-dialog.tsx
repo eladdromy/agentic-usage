@@ -52,14 +52,6 @@ export function CursorCsvUploadDialog({
 
       if (result.inserted === 0) {
         toast.info(noNewRowsMessage(result));
-        if (result.dateFrom && result.dateTo) {
-          void startProjectSync({
-            uploadSummary: "Linking billing rows from CSV date range…",
-            dateFrom: result.dateFrom,
-            dateTo: result.dateTo,
-            onComplete: onSyncComplete,
-          });
-        }
         onOpenChange(false);
         return;
       }

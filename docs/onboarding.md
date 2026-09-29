@@ -35,8 +35,8 @@ Suggested flow: `both` | `claude` | `cursor` | `none`.
 
 - Welcome lists detected harnesses only (no explicit “setup flow” label); routing follows `suggestedFlow` from status.
 - Step content cards use `Surface` (white/card background), matching the Claude log index step.
-- Harness setup steps show a line above the step title: logo + harness name + `Setup (step/total)` — see `src/lib/onboarding/setup-steps.ts`. Totals are **mode-aware**: Claude is 3 steps spend-only / 4 with full tracing; Cursor is 4 (mode → upload → sync → subscription).
-- Each harness starts with a **mode** step ("Spend breakdown only" vs "Spend + Full Tracing") that sets `traceMode[harness]`. Cursor's full-tracing option is disabled ("Coming soon"). Choosing Claude full tracing inserts a `trace` step. Indexing does not start until **Start indexing**; progress is the same dialog as Tracing (**Update trace index**), via `TraceSyncProvider` / `runTraceSyncChunks`. See [tracing.md](./tracing.md).
+- Harness setup steps show a line above the step title: logo + harness name + `Setup (step/total)` — see `src/lib/onboarding/setup-steps.ts`. Claude is 3 steps (mode → index → subscription). Cursor is 4 (mode → upload → sync → subscription).
+- Each harness starts with a **mode** step ("Spend breakdown only" vs "Spend + Full Tracing") that sets `traceMode[harness]`. Claude's next step is a single index card: spend always, and Claude traces on the same card when full tracing was chosen (`startTraceSync({ harness: "claude", modal: false })`, so Cursor's plan scan does not run and the dialog stays closed). Each running line has **Show status**, which opens that index's list; the button goes away when that line finishes. `onboardingClaudeTraceIndexed` is set only after the trace job finishes. See [tracing.md](./tracing.md).
 - Subscription steps reuse `SubscriptionPlanReview` in `mode="onboarding"`: step title + instructions with a line break and short `Auto-detected today: …` in the description — not the Settings “Monthly plans” block.
 - Cursor CSV upload: export helpers and drop zone in a card; **Upload CSV** sits below the card in `SetupActions`.
 
@@ -47,19 +47,19 @@ Suggested flow: `both` | `claude` | `cursor` | `none`.
 | `/setup` | Welcome + detected harness summary |
 | `/setup/paths` | Manual Claude home / vscdb overrides when none detected |
 | `/setup/claude/mode` | Spend-only vs Spend + Full Tracing — sets `traceMode.claude` |
-| `/setup/claude/sync` | Auto full JSONL index |
-| `/setup/claude/trace` | Full-tracing only: **Start indexing** builds the trace index in a dialog; sets `onboardingClaudeTraceIndexed` when that job finishes |
+| `/setup/claude/sync` | The only Claude index step. Always indexes spend (`GET /api/sync/progress` feeds the spend file list). When `traceMode.claude` is `full_tracing`, also builds the Claude trace index in the same step. Neither dialog opens on its own; **Show status** opens it while that line is running and disappears when it finishes. Sets `onboardingClaudeTraceIndexed` when the trace job finishes |
+| `/setup/claude/trace` | Redirects to `/setup/claude/sync` |
 | `/setup/claude/subscription` | Per-month plan review + approve |
 | `/setup/cursor/offer` | Both-flow: set up Cursor or skip |
-| `/setup/cursor/mode` | Spend-only (full tracing "Coming soon") — sets `traceMode.cursor` |
+| `/setup/cursor/mode` | Spend-only vs Spend + Full Tracing — sets `traceMode.cursor` |
 | `/setup/cursor/upload` | Billing CSV upload (**does not** start project sync). Loads local activity dates in a card (spinner → export actions + upload). When `state.vscdb` is present, suggests `from` = earliest local composer activity and `to` = today UTC via `GET /api/cursor/local-export-suggestion` — **Download usage** (direct CSV API) and **Open dashboard** |
-| `/setup/cursor/sync` | Project attach — **required** after upload; auto-starts background sync |
+| `/setup/cursor/sync` | Page title **Index Cursor**. Project attach — **required** after upload; auto-starts background sync. While that work runs, the card heading is **Indexing spend…** (same label as Claude). Under it, one checklist: conversation history, workspace scan, prompt load, and **Matching billing rows** (always visible; pending until earlier steps finish). **Show status** on that bullet opens the month list while matching runs. When the job finishes, the heading is a checked row (“Project sync complete”), same alignment as the Claude spend line. When `traceMode.cursor` is `full_tracing`, also builds the Cursor trace index on this step (dialog stays closed; **Show status** opens the project list while it runs). Sets `onboardingCursorTraceIndexed` when that job finishes. Continue stays disabled until both finishes |
 | `/setup/cursor/subscription` | Per-month plan review + approve |
 | `/setup/complete` | Finalize settings → redirect `/leverage` |
 
 ## Branching flows
 
-**Claude only:** mode → sync → (trace, if full tracing) → subscription → complete
+**Claude only:** mode → index (spend, plus traces if full tracing) → subscription → complete
 
 **Cursor only:** mode → upload → sync → subscription → complete
 
@@ -78,6 +78,7 @@ onboardingClaudeSubscriptionApproved: boolean;
 onboardingCursorSubscriptionApproved: boolean;
 onboardingCursorProjectSyncDone: boolean;
 onboardingClaudeTraceIndexed: boolean;
+onboardingCursorTraceIndexed: boolean;
 onboardingDeferredCursor: boolean;
 traceMode: Partial<Record<"claude" | "cursor", "spend_only" | "full_tracing">>;
 ```
@@ -99,6 +100,8 @@ traceMode: Partial<Record<"claude" | "cursor", "spend_only" | "full_tracing">>;
 
 ## Cursor project sync pitfalls
 
-Onboarding **upload** and **sync** are separate steps. Until `/setup/cursor/sync` finishes, all billing rows are **pending** (not unmatched) — Settings may show thousands “need matching.” That is expected.
+Onboarding **upload** and **sync** are separate steps. `POST /api/cursor/provider-usage/upload` only inserts rows — it does not attach projects. Until `/setup/cursor/sync` finishes, all billing rows are **pending** (not unmatched) — Settings may show thousands “need matching.” That is expected.
 
-After `npm run reset:cursor`, **restart the dev server** before re-uploading; otherwise bubble prep can fail and mark every row `no_local_prompts`. Full playbook: [cursor-project-sync-troubleshooting.md](./cursor-project-sync-troubleshooting.md).
+If sync finds no pending rows (already linked), the step shows complete and **Continue** enables. It does not toast “already linked” or leave the card on “Starting project sync…”.
+
+After `npm run reset:cursor` or `npm run reset:all`, **restart the dev server** before re-uploading; otherwise bubble prep can fail and mark every row `no_local_prompts`. `reset:all` also clears Claude spend, both trace indexes, and onboarding flags (`onboardingClaudeTraceIndexed`, `onboardingCursorTraceIndexed`, `traceMode`) so setup starts at the mode step. Full playbook: [cursor-project-sync-troubleshooting.md](./cursor-project-sync-troubleshooting.md).

@@ -66,6 +66,8 @@ export type AppSettings = {
   onboardingCursorProjectSyncDone: boolean;
   /** True once the in-wizard Claude trace index step has completed. */
   onboardingClaudeTraceIndexed: boolean;
+  /** True once the in-wizard Cursor trace index has completed. */
+  onboardingCursorTraceIndexed: boolean;
   onboardingDeferredCursor: boolean;
 };
 
@@ -95,6 +97,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   onboardingCursorSubscriptionApproved: false,
   onboardingCursorProjectSyncDone: false,
   onboardingClaudeTraceIndexed: false,
+  onboardingCursorTraceIndexed: false,
   onboardingDeferredCursor: false,
 };
 
@@ -280,6 +283,7 @@ export function readSettings(): AppSettings {
       onboardingCursorProjectSyncDone:
         raw.onboardingCursorProjectSyncDone === true,
       onboardingClaudeTraceIndexed: raw.onboardingClaudeTraceIndexed === true,
+      onboardingCursorTraceIndexed: raw.onboardingCursorTraceIndexed === true,
       onboardingDeferredCursor: raw.onboardingDeferredCursor === true,
     };
   } catch {

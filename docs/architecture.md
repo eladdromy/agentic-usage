@@ -99,7 +99,7 @@ An optional, fully isolated **full session trace** index for Claude Code, stored
 | `/api/tracing/sync/plan` | GET | Trace index plan: projects + changed-file counts |
 | `/api/tracing/sync` | POST | Index one project's changed sessions, or `{finalize:true}` |
 | `/api/tracing/{projects,sessions,session,requests,request}` | GET | Trace explorer / sessions / 3-column trace queries |
-| `/api/cursor/provider-usage/upload` | POST | Import billing CSV + project attach |
+| `/api/cursor/provider-usage/upload` | POST | Import billing CSV only (rows stay pending; project linking is the follow-up sync) |
 | `/api/cursor/attach-projects` | POST | Re-run project attach on stored CSV rows |
 | `/api/cursor/billing-coverage` | GET | CSV date range, export links, unmatched preview |
 | `/api/cursor/local-export-suggestion` | GET | Pre-upload dashboard export link from local vscdb composer activity (`from` = first local day, `to` = today) |

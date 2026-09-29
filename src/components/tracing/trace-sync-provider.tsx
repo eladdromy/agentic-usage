@@ -48,10 +48,19 @@ type TraceSyncPlanResponse = {
 
 export type StartTraceSyncOptions = {
   onComplete?: () => void;
+  /** When set, only this harness is planned and indexed. */
+  harness?: "claude" | "cursor";
+  /**
+   * When false, indexing runs with the dialog closed. Call `openStatus` to
+   * show it. Default true (Tracing page).
+   */
+  modal?: boolean;
 };
 
 type TraceSyncContextValue = {
   startTraceSync: (options?: StartTraceSyncOptions) => Promise<void>;
+  /** Opens the progress dialog without starting another index. */
+  openStatus: () => void;
   syncing: boolean;
   syncSnapshot: TraceSyncSnapshot | null;
 };
@@ -65,6 +74,7 @@ const IDLE: TraceSyncSnapshot = {
 
 export async function runTraceSyncChunks(
   onSnapshot: (snapshot: TraceSyncSnapshot) => void,
+  scope?: "claude" | "cursor",
 ): Promise<void> {
   onSnapshot({ ...IDLE, phase: "planning" });
 
@@ -85,9 +95,13 @@ export async function runTraceSyncChunks(
   const claudeOn = settings?.traceMode?.claude === "full_tracing";
   const cursorOn = settings?.traceMode?.cursor === "full_tracing";
   const wantClaude =
-    claudeOn && (activeHarness === "claude" || activeHarness === "all");
+    claudeOn &&
+    (scope === "claude" ||
+      (scope == null && (activeHarness === "claude" || activeHarness === "all")));
   const wantCursor =
-    cursorOn && (activeHarness === "cursor" || activeHarness === "all");
+    cursorOn &&
+    (scope === "cursor" ||
+      (scope == null && (activeHarness === "cursor" || activeHarness === "all")));
 
   const emptyPlan = {
     projects: [],
@@ -309,18 +323,21 @@ const TraceSyncContext = createContext<TraceSyncContextValue | null>(null);
 export function TraceSyncProvider({ children }: { children: ReactNode }) {
   const [syncing, setSyncing] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [dismissible, setDismissible] = useState(false);
   const [syncSnapshot, setSyncSnapshot] = useState<TraceSyncSnapshot | null>(null);
   const activeRun = useRef<Promise<void> | null>(null);
 
   const startTraceSync = useCallback((options: StartTraceSyncOptions = {}) => {
     if (activeRun.current) return activeRun.current;
 
+    const showModal = options.modal !== false;
     activeRun.current = (async () => {
       setSyncing(true);
-      setModalOpen(true);
+      setDismissible(!showModal);
+      setModalOpen(showModal);
       setSyncSnapshot({ ...IDLE, phase: "planning" });
       try {
-        await runTraceSyncChunks(setSyncSnapshot);
+        await runTraceSyncChunks(setSyncSnapshot, options.harness);
         options.onComplete?.();
       } catch (error) {
         setSyncSnapshot((prev) => ({
@@ -337,13 +354,17 @@ export function TraceSyncProvider({ children }: { children: ReactNode }) {
     return activeRun.current;
   }, []);
 
+  const openStatus = useCallback(() => {
+    setModalOpen(true);
+  }, []);
+
   const handleModalClose = useCallback(() => {
     setModalOpen(false);
   }, []);
 
   const value = useMemo(
-    () => ({ startTraceSync, syncing, syncSnapshot }),
-    [startTraceSync, syncing, syncSnapshot],
+    () => ({ startTraceSync, openStatus, syncing, syncSnapshot }),
+    [startTraceSync, openStatus, syncing, syncSnapshot],
   );
 
   return (
@@ -353,6 +374,7 @@ export function TraceSyncProvider({ children }: { children: ReactNode }) {
         open={modalOpen}
         snapshot={syncSnapshot}
         onClose={handleModalClose}
+        dismissible={dismissible}
       />
     </TraceSyncContext.Provider>
   );

@@ -17,7 +17,7 @@
 | Area | Path |
 |------|------|
 | Harness settings | `src/lib/profile/settings.ts`, `src/lib/profile/plan-tiers.ts` |
-| Claude JSONL sync | `src/lib/db/usage-db.ts` |
+| Claude JSONL sync | `src/lib/db/usage-db.ts`, `src/app/api/sync/progress/route.ts` (onboarding spend file list) |
 | Trace parser (Claude) | `src/lib/claude/trace/` (`session-parse.ts`, `content.ts`, `types.ts`) |
 | Trace index / queries | `src/lib/db/trace-db.ts` (`.data/claude-trace.db`) |
 | Tracing API | `src/app/api/tracing/` (`sync/plan`, `sync`, `projects`, `sessions`, `session`, `requests`, `request`) |

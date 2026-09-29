@@ -109,11 +109,20 @@ export function ProjectSyncProvider({ children }: { children: ReactNode }) {
         const targetMonths = resolveProjectSyncTargetMonths(options, payload.months);
 
         if (targetMonths.length === 0) {
-          toast.info("All billing rows are already linked to projects.");
           if (useModal) {
+            toast.info("All billing rows are already linked to projects.");
             setModalOpen(false);
             setSyncSnapshot(null);
+          } else {
+            setSyncSnapshot({
+              phase: "done",
+              bubbleIndexReady: payload.bubbleIndexReady,
+              months: [],
+              status: "done",
+              finished: true,
+            });
           }
+          options.onComplete?.();
           return;
         }
 
@@ -121,14 +130,14 @@ export function ProjectSyncProvider({ children }: { children: ReactNode }) {
         const hasWork = monthsState.some((month) => month.status === "pending");
 
         if (!hasWork) {
+          setSyncSnapshot({
+            phase: "done",
+            bubbleIndexReady: payload.bubbleIndexReady,
+            months: monthsState,
+            status: "done",
+            finished: true,
+          });
           if (useModal) {
-            setSyncSnapshot({
-              phase: "done",
-              bubbleIndexReady: payload.bubbleIndexReady,
-              months: monthsState,
-              status: "done",
-              finished: true,
-            });
             setModalOpen(true);
           }
           options.onComplete?.();

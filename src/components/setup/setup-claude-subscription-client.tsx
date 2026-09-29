@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
 
 import { SubscriptionPlanReview } from "@/components/settings/subscription-plan-review";
 import { SetupStepCard } from "@/components/setup/setup-shell";
@@ -13,27 +12,16 @@ import { claudeSubscriptionProgress } from "@/lib/onboarding/setup-steps";
 
 export function SetupClaudeSubscriptionClient() {
   const router = useRouter();
-  const { status, loading, refresh } = useOnboardingStatus();
+  const { refresh } = useOnboardingStatus();
   const [detectedPlan, setDetectedPlan] = useState<{
     label: string;
     monthlyUsd: number;
   } | null>(null);
 
-  if (loading || !status) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-        Loading subscription details…
-      </div>
-    );
-  }
-
-  const traceMode = status.settings.traceMode?.claude ?? "spend_only";
-
   return (
     <SetupStepCard
       className="space-y-4"
-      setupProgress={claudeSubscriptionProgress(traceMode)}
+      setupProgress={claudeSubscriptionProgress()}
       title="Review Claude subscription"
       description={setupSubscriptionDescription(
         "Confirm the plan tier for each month with usage. Adjust any month where your subscription changed.",

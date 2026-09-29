@@ -1,5 +1,6 @@
-import { SetupClaudeTraceClient } from "@/components/setup/setup-claude-trace-client";
+import { redirect } from "next/navigation";
 
+/** Trace indexing runs inside the single Claude index step. */
 export default function SetupClaudeTracePage() {
-  return <SetupClaudeTraceClient />;
+  redirect("/setup/claude/sync");
 }

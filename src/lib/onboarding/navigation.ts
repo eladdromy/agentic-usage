@@ -11,6 +11,7 @@ export function setupEntryPath(status: OnboardingStatus): string {
   if (suggestedFlow === "cursor" || (suggestedFlow === "both" && !detected.claude)) {
     if (status.settings.traceMode?.cursor == null) return "/setup/cursor/mode";
     if (!status.cursorHasCsv) return "/setup/cursor/upload";
+    if (cursorTraceIndexPending(status)) return "/setup/cursor/sync";
     if (!ready.cursor && !status.settings.onboardingCursorProjectSyncDone) {
       return "/setup/cursor/sync";
     }
@@ -21,12 +22,12 @@ export function setupEntryPath(status: OnboardingStatus): string {
   if (!ready.claude) {
     const claudeTraceMode = status.settings.traceMode?.claude;
     if (claudeTraceMode == null) return "/setup/claude/mode";
-    if (status.claudeEventCount === 0) return "/setup/claude/sync";
     if (
-      claudeTraceMode === "full_tracing" &&
-      !status.settings.onboardingClaudeTraceIndexed
+      status.claudeEventCount === 0 ||
+      (claudeTraceMode === "full_tracing" &&
+        !status.settings.onboardingClaudeTraceIndexed)
     ) {
-      return "/setup/claude/trace";
+      return "/setup/claude/sync";
     }
     if (!status.settings.onboardingClaudeSubscriptionApproved) {
       return "/setup/claude/subscription";
@@ -42,12 +43,24 @@ export function setupEntryPath(status: OnboardingStatus): string {
         ? "/setup/cursor/offer"
         : "/setup/claude/subscription";
     }
-    if (!status.settings.onboardingCursorProjectSyncDone) {
+    if (
+      !status.settings.onboardingCursorProjectSyncDone ||
+      cursorTraceIndexPending(status)
+    ) {
       return "/setup/cursor/sync";
     }
     if (!status.settings.onboardingCursorSubscriptionApproved) {
       return "/setup/cursor/subscription";
     }
+  }
+
+  if (
+    cursorTraceIndexPending(status) &&
+    detected.cursor &&
+    status.cursorHasCsv &&
+    !status.settings.onboardingDeferredCursor
+  ) {
+    return "/setup/cursor/sync";
   }
 
   if (ready.claude || ready.cursor) {
@@ -61,15 +74,15 @@ export function nextPathAfterClaudeMode(): string {
   return "/setup/claude/sync";
 }
 
-export function nextPathAfterClaudeSync(status: OnboardingStatus): string {
-  if (status.settings.traceMode?.claude === "full_tracing") {
-    return "/setup/claude/trace";
-  }
+export function nextPathAfterClaudeSync(): string {
   return "/setup/claude/subscription";
 }
 
-export function nextPathAfterClaudeTrace(): string {
-  return "/setup/claude/subscription";
+function cursorTraceIndexPending(status: OnboardingStatus): boolean {
+  return (
+    status.settings.traceMode?.cursor === "full_tracing" &&
+    !status.settings.onboardingCursorTraceIndexed
+  );
 }
 
 export function nextPathAfterCursorMode(): string {
