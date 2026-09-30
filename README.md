@@ -35,6 +35,21 @@ Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 
 ---
 
+## Install
+
+**Requirements:** Node.js 20+ and at least one supported coding agent harness with local data on disk.
+
+```bash
+git clone https://github.com/eladdromy/agentic-usage.git
+cd agentic-usage
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+---
+
 ## What you get
 
 | View | What it shows |
@@ -58,24 +73,7 @@ Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 **On the roadmap**
 
 - Codex CLI, Grok Build, and additional harness adapters (see [future harness research](./docs/future-harnesses-codex-grok.md))
-- One-line install (`curl … \| bash`) — dev install below for now
-
----
-
-## Install
-
-**Requirements:** Node.js 20+ and at least one supported coding agent harness with local data on disk.
-
-```bash
-git clone https://github.com/eladdromy/agentic-usage.git
-cd agentic-usage
-npm install
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-> **Coming soon:** a single install command so you don't need to clone and run dev manually. Track progress in [Issues](https://github.com/eladdromy/agentic-usage/issues).
+- One-line install (`curl … \| bash`) — see [Roadmap](#roadmap) below
 
 ---
 

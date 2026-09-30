@@ -29,7 +29,7 @@ const encodedProject = encodeURIComponent(TRACE_PROJECT_SLUG);
 const encodedSession = encodeURIComponent(TRACE_SESSION_ID);
 
 const PAGE_PATHS = [
-  "/leverage?screenshot=year-summary&year=2026",
+  "/leverage?screenshot=summary-export&year=2026",
   "/leverage",
   "/raw-spend",
   "/projects-breakdown",

@@ -53,7 +53,7 @@ When `AGENTIC_USAGE_ANONYMIZE=1`:
 
 | File | Route |
 |------|--------|
-| `demo-hero.png` | `/leverage?screenshot=year-summary&year=2026` |
+| `demo-hero.png` | `/leverage?screenshot=summary-export&year=2026` |
 | `demo-plan-leverage.png` | `/leverage` |
 | `demo-projects.png` | `/projects-breakdown` |
 | `demo-spend-logs.png` | `/raw-spend` |
@@ -63,7 +63,9 @@ When `AGENTIC_USAGE_ANONYMIZE=1`:
 
 ## Hero screenshot mode
 
-`/leverage?screenshot=year-summary&year=2026` strips the app chrome and renders only the year summary card (`layout="hero"`). Used for `demo-hero.png`.
+`/leverage?screenshot=summary-export&year=2026` strips the app chrome and renders the same **Download summary** export card (`PlanLeverageSummaryExportCard`) used for the leverage PNG download. Used for `demo-hero.png`.
+
+Legacy `screenshot=year-summary` still renders the in-page year summary card (`layout="hero"`) if needed.
 
 ## Leak checks
 

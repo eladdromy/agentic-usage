@@ -10,6 +10,7 @@ import {
 import { anonymizeRawSpendApiRow, anonymizeProjectBreakdownRows } from "@/lib/demo/anonymize-api-payloads";
 import type { RawSpendApiRow } from "@/lib/raw-spend-all";
 import {
+  isReadmeSummaryExportScreenshot,
   isReadmeYearSummaryScreenshot,
   readmeScreenshotYear,
 } from "@/lib/demo/readme-screenshot";
@@ -168,9 +169,14 @@ describe("readmeScreenshotHarnessLogo", () => {
 });
 
 describe("readme screenshot helpers", () => {
-  it("detects year-summary screenshot mode", () => {
+  it("detects year-summary and summary-export screenshot modes", () => {
     expect(
       isReadmeYearSummaryScreenshot(new URLSearchParams("screenshot=year-summary")),
+    ).toBe(true);
+    expect(
+      isReadmeSummaryExportScreenshot(
+        new URLSearchParams("screenshot=summary-export"),
+      ),
     ).toBe(true);
     expect(isReadmeYearSummaryScreenshot(new URLSearchParams())).toBe(false);
   });

@@ -14,7 +14,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ActiveHarness } from "@/lib/profile/settings";
-import { isReadmeYearSummaryScreenshot } from "@/lib/demo/readme-screenshot";
+import { isReadmeLeverageScreenshot } from "@/lib/demo/readme-screenshot";
 import { useIsClient } from "@/lib/use-is-client";
 import { cn } from "@/lib/utils";
 
@@ -33,8 +33,7 @@ function AppShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isClient = useIsClient();
-  const screenshotMode =
-    isClient && isReadmeYearSummaryScreenshot(searchParams);
+  const screenshotMode = isClient && isReadmeLeverageScreenshot(searchParams);
   const { activeHarness, syncing } = useRouteSync();
 
   const showIndexing =

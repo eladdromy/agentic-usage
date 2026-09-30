@@ -106,7 +106,7 @@ capture() {
     "${OUT}/${file}"
 }
 
-capture "/leverage?screenshot=year-summary&year=2026" demo-hero.png 1200,720 "h2:has-text('Summary of 2026')"
+capture "/leverage?screenshot=summary-export&year=2026" demo-hero.png 960,800 "[data-readme-screenshot=summary-export]"
 capture "/leverage" demo-plan-leverage.png 1440,900 "h1:has-text('Plan Leverage')"
 capture "/raw-spend" demo-spend-logs.png 1440,900 "h1:has-text('Spend Logs')"
 capture "/projects-breakdown" demo-projects.png 1440,900 "h1:has-text('Projects breakdown')"
