@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { anonymizeTraceSessionResponse } from "@/lib/demo/anonymize-api-payloads";
 import { getCursorTraceSession } from "@/lib/db/cursor-trace-db";
 import { getTraceSession } from "@/lib/db/trace-db";
 import { decodeProjectSlugForDisplay } from "@/lib/claude/project-slugs";
@@ -21,7 +22,8 @@ export async function GET(request: Request) {
     if (!detail) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
-    return NextResponse.json({
+    return NextResponse.json(
+      anonymizeTraceSessionResponse({
       harness: "cursor" as const,
       session: {
         harness: "cursor" as const,
@@ -47,7 +49,8 @@ export async function GET(request: Request) {
         interactionMode: i.interactionMode,
         reverted: i.reverted,
       })),
-    });
+    }),
+    );
   }
 
   if (!isValidSessionId(sessionId)) {
@@ -59,7 +62,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  return NextResponse.json({
+  return NextResponse.json(
+    anonymizeTraceSessionResponse({
     harness: "claude" as const,
     session: {
       harness: "claude" as const,
@@ -76,5 +80,6 @@ export async function GET(request: Request) {
       projectPath: decodeProjectSlugForDisplay(detail.session.projectSlug),
     },
     interactions: detail.interactions,
-  });
+  }),
+  );
 }

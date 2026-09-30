@@ -10,7 +10,7 @@
 </h1>
 
 <p align="center">
-  <strong>Local observability for your coding agent harnesses.</strong> Plan leverage, project breakdown, and spend logs — in one dashboard on your machine.
+  <strong>Local observability for your coding agent harnesses.</strong> Plan leverage, project breakdown, spend logs, and session tracing — in one dashboard on your machine.
 </p>
 
 <p align="center">
@@ -29,7 +29,7 @@
 
 ## The 30-second version
 
-Agentic Usage is a **local dashboard** that reads usage data from the coding agent tools you already run. It indexes session logs, imports billing exports where needed, and shows you **where the money went** — plan leverage by month, spend by project, and cost per request.
+Agentic Usage is a **local dashboard** that reads usage data from the coding agent tools you already run. It indexes session logs, imports billing exports where needed, and shows you **where the money went** — plan leverage by month, spend by project, cost per request, and full session traces when you enable tracing.
 
 Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 
@@ -42,10 +42,12 @@ Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
 | **Plan Leverage** | Monthly API-equivalent spend ÷ subscription price — are you getting your plan's worth? |
 | **Projects** | All-time spend allocated by project/workspace across harnesses |
 | **Spend Logs** | Per-request token spend with filters by project, model, and date |
+| **Tracing** | Full session explorer — projects → sessions → interactions, requests, and request breakdown (Claude JSONL + Cursor composer logs) |
 
 **Works today**
 
 - **Claude Code** and **Cursor** in one app — merge into a combined view or switch per harness in the navbar
+- **Full session tracing** (optional per harness) — HarnOps-style three-column trace with interaction segmentation, tool/thinking breakdown, and Cursor CSV cost alignment
 - First-run **setup wizard** with harness auto-detection, guided data import, and subscription approval
 - Cursor **export shortcuts** during setup — suggested billing date range from local composer activity, plus one-click **Download usage** / **Open dashboard** links
 - Cursor **project sync** links billing CSV rows to local workspace paths (`state.vscdb` bubble scan in the CSV date range)
@@ -111,6 +113,16 @@ All-time spend allocated by project/workspace, with per-harness drill-down.
 Per-request token spend with filters by project, model, and date range.
 
 ![Spend Logs — filtered request table with token and API-equivalent columns](./readme-assets/demo-spend-logs.png)
+
+### Tracing
+
+Browse indexed sessions by project, then drill into a session for interactions, the request timeline, and per-request breakdown (thinking, tools, and results).
+
+![Tracing — projects indexed from local session logs](./readme-assets/demo-tracing.png)
+
+![Tracing — sessions for a project](./readme-assets/demo-tracing-sessions.png)
+
+![Tracing — three-column session trace](./readme-assets/demo-tracing-session.png)
 
 ---
 

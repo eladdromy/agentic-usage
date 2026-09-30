@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { deepScrubReadmePayload } from "@/lib/demo/anonymize-api-payloads";
 import { listCursorInteractionRequests } from "@/lib/db/cursor-trace-db";
 import { listInteractionRequests } from "@/lib/db/trace-db";
 import { isValidSessionId } from "@/lib/claude/trace/session-parse";
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
     }
     const items = listCursorInteractionRequests(sessionId, interactionIdx);
-    return NextResponse.json({ items });
+    return NextResponse.json(deepScrubReadmePayload({ items }));
   }
 
   if (!isValidSessionId(sessionId)) {
@@ -31,5 +32,5 @@ export async function GET(request: Request) {
   }
 
   const items = listInteractionRequests(sessionId, interactionIdx);
-  return NextResponse.json({ items });
+  return NextResponse.json(deepScrubReadmePayload({ items }));
 }

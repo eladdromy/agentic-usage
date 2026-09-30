@@ -5,8 +5,9 @@ import {
   anonymizeProjectName,
   anonymizeSessionRef,
   isAnonymizeEnabled,
+  readmeScreenshotHarnessLogo,
 } from "@/lib/demo/anonymize-display";
-import { anonymizeRawSpendApiRow } from "@/lib/demo/anonymize-api-payloads";
+import { anonymizeRawSpendApiRow, anonymizeProjectBreakdownRows } from "@/lib/demo/anonymize-api-payloads";
 import type { RawSpendApiRow } from "@/lib/raw-spend-all";
 import {
   isReadmeYearSummaryScreenshot,
@@ -110,6 +111,59 @@ describe("anonymizeRawSpendApiRow", () => {
     expect(row.sourceDetail).toMatch(/^\/Users\/demo\/projects\//);
     expect(row.refLabel).toBe(anonymizeSessionRef("session-123"));
     expect(row.refLabel).not.toBe(baseRow.refLabel);
+    expect(row.harness === "claude" || row.harness === "cursor").toBe(true);
+  });
+});
+
+describe("anonymizeProjectBreakdownRows", () => {
+  afterEach(() => {
+    delete process.env.AGENTIC_USAGE_ANONYMIZE;
+  });
+
+  it("anonymizes project keys for readme leak checks", () => {
+    process.env.AGENTIC_USAGE_ANONYMIZE = "1";
+
+    const rows = anonymizeProjectBreakdownRows([
+      {
+        rowKey: "claude:-Users-eladd-secret",
+        harnesses: ["cursor"],
+        projectKey: "-Users-eladd-Library-Application-Support-HarnessApp",
+        label: "HarnessApp",
+        detail: "/Users/eladd/foo",
+        apiEqUsd: 1,
+        apiEqLabel: "~$1",
+        requestCount: 1,
+        requestRangeLabel: "—",
+        estimateCount: 1,
+        firstActivitySec: 0,
+        lastActivitySec: 0,
+        spendUsd: 0,
+        spendLabel: "$0",
+        spendMonths: [],
+        harnessBreakdown: [],
+      },
+    ]);
+
+    expect(rows[0]?.projectKey).not.toContain("eladd");
+    expect(rows[0]?.projectKey).not.toContain("HarnessApp");
+    expect(rows[0]?.rowKey).not.toContain("HarnessApp");
+  });
+});
+
+describe("readmeScreenshotHarnessLogo", () => {
+  afterEach(() => {
+    delete process.env.AGENTIC_USAGE_ANONYMIZE;
+  });
+
+  it("assigns ~70% Claude logos across many keys when anonymization is on", () => {
+    process.env.AGENTIC_USAGE_ANONYMIZE = "1";
+
+    let claude = 0;
+    for (let i = 0; i < 100; i++) {
+      if (readmeScreenshotHarnessLogo(`project-${i}`) === "claude") claude += 1;
+    }
+    expect(claude).toBeGreaterThanOrEqual(60);
+    expect(claude).toBeLessThanOrEqual(80);
   });
 });
 

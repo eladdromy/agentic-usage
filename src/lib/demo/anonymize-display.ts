@@ -1,3 +1,5 @@
+import type { HarnessKind } from "@/lib/profile/settings";
+
 /** Deterministic fake project names for README screenshots (env-gated). */
 
 const ADJECTIVES = [
@@ -118,4 +120,21 @@ export function anonymizeProjectFields(
     label: anonymizeProjectName(key),
     detail: anonymizeProjectPath(key),
   };
+}
+
+/** ~70% Claude / ~30% Cursor harness logos in README project tables (deterministic). */
+export function readmeScreenshotHarnessLogo(canonicalKey: string): HarnessKind {
+  const hash = hashKey(`logo:${canonicalKey.trim() || "project"}`);
+  return (hash % 10) < 7 ? "claude" : "cursor";
+}
+
+export function readmeScreenshotHarnessesForRow(
+  canonicalKey: string,
+  harnesses: HarnessKind[],
+): HarnessKind[] {
+  if (!isAnonymizeEnabled()) return harnesses;
+  if (harnesses.length <= 1) {
+    return [readmeScreenshotHarnessLogo(canonicalKey)];
+  }
+  return [...harnesses].sort((a, b) => a.localeCompare(b));
 }
