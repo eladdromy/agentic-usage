@@ -6,24 +6,31 @@ export type HarnessSetupProgress = {
   total: number;
 };
 
-export const CLAUDE_SETUP_STEP_TOTAL = 2;
-export const CURSOR_SETUP_STEP_TOTAL = 3;
+/** Claude: mode -> one index (spend, plus traces when chosen) -> subscription. */
+export const CLAUDE_SETUP_STEP_TOTAL = 3;
 
-export const CLAUDE_SETUP_STEPS = {
-  sync: { harness: "claude" as const, step: 1, total: CLAUDE_SETUP_STEP_TOTAL },
-  subscription: {
-    harness: "claude" as const,
-    step: 2,
-    total: CLAUDE_SETUP_STEP_TOTAL,
-  },
-};
+export function claudeModeProgress(): HarnessSetupProgress {
+  return { harness: "claude", step: 1, total: CLAUDE_SETUP_STEP_TOTAL };
+}
+
+export function claudeSyncProgress(): HarnessSetupProgress {
+  return { harness: "claude", step: 2, total: CLAUDE_SETUP_STEP_TOTAL };
+}
+
+export function claudeSubscriptionProgress(): HarnessSetupProgress {
+  return { harness: "claude", step: 3, total: CLAUDE_SETUP_STEP_TOTAL };
+}
+
+/** Cursor: mode -> upload -> sync (project link, plus traces when chosen) -> subscription. */
+export const CURSOR_SETUP_STEP_TOTAL = 4;
 
 export const CURSOR_SETUP_STEPS = {
-  upload: { harness: "cursor" as const, step: 1, total: CURSOR_SETUP_STEP_TOTAL },
-  sync: { harness: "cursor" as const, step: 2, total: CURSOR_SETUP_STEP_TOTAL },
+  mode: { harness: "cursor" as const, step: 1, total: CURSOR_SETUP_STEP_TOTAL },
+  upload: { harness: "cursor" as const, step: 2, total: CURSOR_SETUP_STEP_TOTAL },
+  sync: { harness: "cursor" as const, step: 3, total: CURSOR_SETUP_STEP_TOTAL },
   subscription: {
     harness: "cursor" as const,
-    step: 3,
+    step: 4,
     total: CURSOR_SETUP_STEP_TOTAL,
   },
 };

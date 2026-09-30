@@ -13,11 +13,14 @@ const mockSettings = vi.hoisted(() => {
     activeHarness: "cursor",
     syncDebounceMinutes: 1,
     syncMethod: "updates_only",
+    traceMode: {},
     onboardingStartedAt: "2026-09-08T10:00:00.000Z",
     onboardingCompletedAt: null,
     onboardingClaudeSubscriptionApproved: true,
     onboardingCursorSubscriptionApproved: true,
     onboardingCursorProjectSyncDone: true,
+    onboardingClaudeTraceIndexed: false,
+    onboardingCursorTraceIndexed: false,
     onboardingDeferredCursor: false,
   };
   return { current: { ...base } };
@@ -80,11 +83,14 @@ function legacySettings(): AppSettings {
     activeHarness: null,
     syncDebounceMinutes: 1,
     syncMethod: "updates_only",
+    traceMode: {},
     onboardingStartedAt: null,
     onboardingCompletedAt: null,
     onboardingClaudeSubscriptionApproved: false,
     onboardingCursorSubscriptionApproved: false,
     onboardingCursorProjectSyncDone: false,
+    onboardingClaudeTraceIndexed: false,
+    onboardingCursorTraceIndexed: false,
     onboardingDeferredCursor: false,
   };
 }

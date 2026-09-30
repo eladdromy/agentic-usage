@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { BarChart3, FolderKanban, LoaderCircle, Receipt, Settings } from "lucide-react";
+import { BarChart3, FolderKanban, LoaderCircle, Receipt, Settings, Waypoints } from "lucide-react";
 
 import { CursorSetupBannerGate } from "@/components/cursor/cursor-setup-banner-gate";
 import { AppBrand } from "@/components/brand/app-brand";
@@ -14,7 +14,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ActiveHarness } from "@/lib/profile/settings";
-import { isReadmeYearSummaryScreenshot } from "@/lib/demo/readme-screenshot";
+import { isReadmeLeverageScreenshot } from "@/lib/demo/readme-screenshot";
 import { useIsClient } from "@/lib/use-is-client";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/leverage", label: "Plan Leverage", icon: BarChart3 },
   { href: "/projects-breakdown", label: "Projects", icon: FolderKanban },
   { href: "/raw-spend", label: "Spend Logs", icon: Receipt },
+  { href: "/tracing", label: "Tracing", icon: Waypoints },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -32,8 +33,7 @@ function AppShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isClient = useIsClient();
-  const screenshotMode =
-    isClient && isReadmeYearSummaryScreenshot(searchParams);
+  const screenshotMode = isClient && isReadmeLeverageScreenshot(searchParams);
   const { activeHarness, syncing } = useRouteSync();
 
   const showIndexing =

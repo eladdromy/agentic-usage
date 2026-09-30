@@ -10,7 +10,7 @@
 </h1>
 
 <p align="center">
-  <strong>Local observability for your coding agent harnesses.</strong> Plan leverage, project breakdown, and spend logs — in one dashboard on your machine.
+  <strong>Local observability for your coding agent harnesses.</strong> Plan leverage, project breakdown, spend logs, and session tracing — in one dashboard on your machine.
 </p>
 
 <p align="center">
@@ -29,34 +29,9 @@
 
 ## The 30-second version
 
-Agentic Usage is a **local dashboard** that reads usage data from the coding agent tools you already run. It indexes session logs, imports billing exports where needed, and shows you **where the money went** — plan leverage by month, spend by project, and cost per request.
+Agentic Usage is a **local dashboard** that reads usage data from the coding agent tools you already run. It indexes session logs, imports billing exports where needed, and shows you **where the money went** — plan leverage by month, spend by project, cost per request, and full session traces when you enable tracing.
 
 Everything stays on your machine. No accounts, no cloud sync, no outbound calls.
-
----
-
-## What you get
-
-| View | What it shows |
-|------|----------------|
-| **Plan Leverage** | Monthly API-equivalent spend ÷ subscription price — are you getting your plan's worth? |
-| **Projects** | All-time spend allocated by project/workspace across harnesses |
-| **Spend Logs** | Per-request token spend with filters by project, model, and date |
-
-**Works today**
-
-- **Claude Code** and **Cursor** in one app — merge into a combined view or switch per harness in the navbar
-- First-run **setup wizard** with harness auto-detection, guided data import, and subscription approval
-- Cursor **export shortcuts** during setup — suggested billing date range from local composer activity, plus one-click **Download usage** / **Open dashboard** links
-- Cursor **project sync** links billing CSV rows to local workspace paths (`state.vscdb` bubble scan in the CSV date range)
-- Automatic subscription plan detection where the harness exposes it
-- Dynamic navbar harness control — static badge when one harness is present, or **All / Claude / Cursor** dropdown when both are installed
-- Sparklines, year summaries, and downloadable leverage snapshots
-
-**On the roadmap**
-
-- Codex CLI, Grok Build, and additional harness adapters (see [future harness research](./docs/future-harnesses-codex-grok.md))
-- One-line install (`curl … \| bash`) — dev install below for now
 
 ---
 
@@ -73,7 +48,32 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-> **Coming soon:** a single install command so you don't need to clone and run dev manually. Track progress in [Issues](https://github.com/eladdromy/agentic-usage/issues).
+---
+
+## What you get
+
+| View | What it shows |
+|------|----------------|
+| **Plan Leverage** | Monthly API-equivalent spend ÷ subscription price — are you getting your plan's worth? |
+| **Projects** | All-time spend allocated by project/workspace across harnesses |
+| **Spend Logs** | Per-request token spend with filters by project, model, and date |
+| **Tracing** | Full session explorer — projects → sessions → interactions, requests, and request breakdown (Claude JSONL + Cursor composer logs) |
+
+**Works today**
+
+- **Claude Code** and **Cursor** in one app — merge into a combined view or switch per harness in the navbar
+- **Full session tracing** (optional per harness) — HarnOps-style three-column trace with interaction segmentation, tool/thinking breakdown, and Cursor CSV cost alignment
+- First-run **setup wizard** with harness auto-detection, guided data import, and subscription approval
+- Cursor **export shortcuts** during setup — suggested billing date range from local composer activity, plus one-click **Download usage** / **Open dashboard** links
+- Cursor **project sync** links billing CSV rows to local workspace paths (`state.vscdb` bubble scan in the CSV date range)
+- Automatic subscription plan detection where the harness exposes it
+- Dynamic navbar harness control — static badge when one harness is present, or **All / Claude / Cursor** dropdown when both are installed
+- Sparklines, year summaries, and downloadable leverage snapshots
+
+**On the roadmap**
+
+- Codex CLI, Grok Build, and additional harness adapters (see [future harness research](./docs/future-harnesses-codex-grok.md))
+- One-line install (`curl … \| bash`) — see [Roadmap](#roadmap) below
 
 ---
 
@@ -112,6 +112,16 @@ Per-request token spend with filters by project, model, and date range.
 
 ![Spend Logs — filtered request table with token and API-equivalent columns](./readme-assets/demo-spend-logs.png)
 
+### Tracing
+
+Browse indexed sessions by project, then drill into a session for interactions, the request timeline, and per-request breakdown (thinking, tools, and results).
+
+![Tracing — projects indexed from local session logs](./readme-assets/demo-tracing.png)
+
+![Tracing — sessions for a project](./readme-assets/demo-tracing-sessions.png)
+
+![Tracing — three-column session trace](./readme-assets/demo-tracing-session.png)
+
 ---
 
 ## Environment
@@ -121,12 +131,12 @@ No `.env` file is required. These are **optional shell variables** — set them 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `AGENTIC_USAGE_DATA_DIR` | `./.data` | SQLite index and app settings |
-| `AGENTIC_USAGE_ANONYMIZE` | off | Replace project **display** names/paths in API responses (for README screenshots). Filter values stay real so Spend Logs project filters still work. |
+| `AGENTIC_USAGE_ANONYMIZE` | off | Replace project **display** fields in API responses (for README screenshots). Spend Logs filter **`value`** keys stay real so project filters still work; see [readme-screenshots.md](./docs/readme-screenshots.md). |
 | `CLAUDE_CONFIG_DIR` | `~/.claude` | Claude Code config directory (official) |
 | `CLAUDE_HOME` | — | Legacy Claude config override; used only when `CLAUDE_CONFIG_DIR` is unset |
 | `VSCDB_PATH` | Cursor global `state.vscdb` | Override IDE state DB path |
 
-When `AGENTIC_USAGE_ANONYMIZE=1`, only labels shown in the UI are anonymized — not internal filter keys or database queries.
+When `AGENTIC_USAGE_ANONYMIZE=1`, API responses use fake labels and paths where documented in [readme-screenshots.md](./docs/readme-screenshots.md). Spend Logs filter **`value`** keys and the database are unchanged.
 
 ---
 
@@ -150,6 +160,8 @@ Detailed architecture, CSV import, log parsing, and plan pricing: [docs/README.m
 |---------|---------|
 | `npm run reset:cursor` | Wipe Cursor billing DB, bubble index, and Cursor onboarding flags (restart dev server after) |
 | `npm run reset:claude` | Wipe Claude usage index and Claude onboarding flags |
+| `npm run reset:trace` | Wipe Claude and Cursor trace indexes only |
+| `npm run reset:all` | Wipe Claude, Cursor, and trace data and return to onboarding |
 
 See [cursor-project-sync-troubleshooting.md](./docs/cursor-project-sync-troubleshooting.md) if project sync shows thousands of pending rows or mass match failures.
 

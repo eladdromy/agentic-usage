@@ -76,6 +76,8 @@ Settings upload (`CursorCsvUploadDialog`) **does** auto-start sync after import.
 
 **Trap:** User uploads on the onboarding upload step, opens **Settings → Project sync** before completing `/setup/cursor/sync`. Every row is still **pending** → UI shows thousands **need matching**. This is correct pre-sync state, not a regression.
 
+**Do not attach inside the upload handler.** Linking belongs to `startProjectSync` (settings modal or `/setup/cursor/sync`). An upload that attaches first makes the next sync see zero pending months: snackbar “All billing rows are already linked to projects.” and, on the onboarding card (`modal: false`), **Continue** stayed disabled because no finished snapshot was set.
+
 **Rule for agents:** Always ask whether project sync has **finished** before interpreting unmatched counts. Check `pending = 0` in SQL above.
 
 ---

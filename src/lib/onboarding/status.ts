@@ -57,7 +57,10 @@ export type OnboardingStatus = {
     | "onboardingClaudeSubscriptionApproved"
     | "onboardingCursorSubscriptionApproved"
     | "onboardingCursorProjectSyncDone"
+    | "onboardingClaudeTraceIndexed"
+    | "onboardingCursorTraceIndexed"
     | "onboardingDeferredCursor"
+    | "traceMode"
     | "activeHarness"
   >;
   claudeEventCount: number;
@@ -230,7 +233,10 @@ export function buildOnboardingStatus(settings?: AppSettings): OnboardingStatus 
       onboardingClaudeSubscriptionApproved: s.onboardingClaudeSubscriptionApproved,
       onboardingCursorSubscriptionApproved: s.onboardingCursorSubscriptionApproved,
       onboardingCursorProjectSyncDone: s.onboardingCursorProjectSyncDone,
+      onboardingClaudeTraceIndexed: s.onboardingClaudeTraceIndexed,
+      onboardingCursorTraceIndexed: s.onboardingCursorTraceIndexed,
       onboardingDeferredCursor: s.onboardingDeferredCursor,
+      traceMode: s.traceMode,
       activeHarness: s.activeHarness,
     },
     claudeEventCount: getEventCount(),

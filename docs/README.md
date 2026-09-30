@@ -5,6 +5,7 @@
 | [architecture.md](./architecture.md) | System design and dual-harness data flow |
 | [readme-screenshots.md](./readme-screenshots.md) | README demo PNG capture and anonymization |
 | [claude-log-parsing.md](./claude-log-parsing.md) | How Claude Code JSONL is parsed |
+| [tracing.md](./tracing.md) | Full session tracing: index, schema, routes, UI, `traceMode` |
 | [cursor-provider-usage-csv.md](./cursor-provider-usage-csv.md) | Billing CSV import, spend, leverage, export links |
 | [cursor-project-sync-troubleshooting.md](./cursor-project-sync-troubleshooting.md) | Project sync failures, “thousands unmatched”, reset/re-match playbook |
 | [plan-pricing.md](./plan-pricing.md) | Subscription plan mapping and overrides |
@@ -16,7 +17,11 @@
 | Area | Path |
 |------|------|
 | Harness settings | `src/lib/profile/settings.ts`, `src/lib/profile/plan-tiers.ts` |
-| Claude JSONL sync | `src/lib/db/usage-db.ts` |
+| Claude JSONL sync | `src/lib/db/usage-db.ts`, `src/app/api/sync/progress/route.ts` (onboarding spend file list) |
+| Trace parser (Claude) | `src/lib/claude/trace/` (`session-parse.ts`, `content.ts`, `types.ts`) |
+| Trace index / queries | `src/lib/db/trace-db.ts` (`.data/claude-trace.db`) |
+| Tracing API | `src/app/api/tracing/` (`sync/plan`, `sync`, `projects`, `sessions`, `session`, `requests`, `request`) |
+| Tracing UI | `src/app/(app)/tracing/`, `src/components/tracing/`, `src/lib/tracing-shared.ts` |
 | Billing CSV | `src/lib/cursor/provider-usage-db.ts` |
 | CSV coverage / export URLs | `src/lib/cursor/billing-coverage.ts` |
 | Cursor subscription profile | `src/lib/cursor/cursor-profile.ts` |

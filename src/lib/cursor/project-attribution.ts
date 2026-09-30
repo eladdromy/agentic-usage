@@ -261,7 +261,7 @@ function loadFromComposerHeadersTable(
   }
 }
 
-function projectPathFromComposerDataRaw(raw: string): string | null {
+export function projectPathFromComposerDataRaw(raw: string): string | null {
   try {
     const parsed = JSON.parse(raw) as { workspaceIdentifier?: unknown };
     return projectPathFromWorkspaceIdentifier(parsed.workspaceIdentifier);

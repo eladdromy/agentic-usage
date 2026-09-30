@@ -4,6 +4,7 @@ import {
   readSettings,
   writeSettings,
   normalizePlanOverrides,
+  normalizeTraceMode,
   type ActiveHarness,
   type AppSettings,
   type SyncDebounceMinutes,
@@ -73,6 +74,22 @@ export async function PUT(request: Request) {
     activeHarness,
     syncDebounceMinutes,
     syncMethod,
+    traceMode:
+      body.traceMode !== undefined
+        ? { ...current.traceMode, ...normalizeTraceMode(body.traceMode) }
+        : current.traceMode,
+    onboardingClaudeTraceIndexed:
+      body.onboardingClaudeTraceIndexed === true
+        ? true
+        : body.onboardingClaudeTraceIndexed === false
+          ? false
+          : current.onboardingClaudeTraceIndexed,
+    onboardingCursorTraceIndexed:
+      body.onboardingCursorTraceIndexed === true
+        ? true
+        : body.onboardingCursorTraceIndexed === false
+          ? false
+          : current.onboardingCursorTraceIndexed,
     onboardingCompletedAt:
       body.onboardingCompletedAt === null
         ? null

@@ -121,8 +121,13 @@ export const PlanLeverageSummaryExportCard = forwardRef<
     year: number;
     summary: PlanLeverageYearSummary;
     months: PlanLeverageMonthRow[];
+    /** Visible on-page capture (README hero); default is off-screen for download PNG. */
+    captureVisible?: boolean;
   }
->(function PlanLeverageSummaryExportCard({ year, summary, months }, ref) {
+>(function PlanLeverageSummaryExportCard(
+  { year, summary, months, captureVisible = false },
+  ref,
+) {
   const showHarnessBreakdown = summary.harnessBreakdown.length > 0;
   const leverageTrend = monthlyTrendFromRows(
     months,
@@ -136,9 +141,15 @@ export const PlanLeverageSummaryExportCard = forwardRef<
   return (
     <div
       ref={ref}
-      className="pointer-events-none fixed top-0 left-0 -z-50 overflow-hidden bg-background text-foreground opacity-0"
+      data-readme-screenshot="summary-export"
+      className={cn(
+        "overflow-hidden bg-background text-foreground",
+        captureVisible
+          ? "relative mx-auto"
+          : "pointer-events-none fixed top-0 left-0 -z-50 opacity-0",
+      )}
       style={{ width: LEVERAGE_SUMMARY_EXPORT_WIDTH_PX }}
-      aria-hidden="true"
+      aria-hidden={captureVisible ? undefined : true}
     >
       <div className="flex flex-col gap-6 p-8">
         <h1 className="text-2xl font-semibold tracking-tight">

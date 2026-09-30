@@ -63,8 +63,8 @@ flowchart TD
   gate -->|yes| app["/leverage and analytics"]
   setup --> detect[Detect Claude + Cursor paths]
   detect --> branch{Flow}
-  branch --> claude[Claude: sync → subscription]
-  branch --> cursor[Cursor: CSV → project sync → subscription]
+  branch --> claude["Claude: mode → sync → (trace) → subscription"]
+  branch --> cursor["Cursor: mode → CSV → project sync → subscription"]
   branch --> both[Both: Claude first, optional Cursor]
   branch --> none[None: manual paths]
   claude --> app
@@ -79,6 +79,10 @@ Details: [onboarding.md](./onboarding.md).
 - **Claude** — JSONL mtime watermark; one row per assistant message with `message.usage`. Triggered on navigation and manual Re-index.
 - **Cursor** — **no full log indexing**. Spend and leverage read uploaded **usage-events CSV** only. After CSV import, **scoped** reads of `state.vscdb` (user/agent bubbles in the billing date range) attach project paths; subscription plan still auto-detects from ItemTable profile keys.
 
+## Tracing
+
+Optional **full session trace** indexes: Claude → `.data/claude-trace.db`, Cursor → `.data/cursor-trace.db` (both separate from spend DBs). Powers the **Tracing** nav item: projects → sessions → three-column session trace (Interactions | Requests | Request breakdown). Incremental (mtime watermark + per-session hash). Gated per harness by `traceMode` (`spend_only` | `full_tracing`), chosen in onboarding **mode** and toggleable in Settings; Cursor full tracing can run during onboarding **Index Cursor** when `CURSOR_FULL_TRACING_ONBOARDING_AVAILABLE` is true. Full details: [tracing.md](./tracing.md).
+
 ## API routes
 
 | Route | Method | Purpose |
@@ -89,10 +93,14 @@ Details: [onboarding.md](./onboarding.md).
 | `/api/profile` | GET | Paths, counts, harness, plan, harness availability |
 | `/api/onboarding/status` | GET | Harness detection, readiness, suggested setup flow |
 | `/api/onboarding/complete` | POST | Mark onboarding done and set `activeHarness` |
-| `/api/settings` | GET/PUT | Plan overrides, harness, sync settings, onboarding flags |
+| `/api/settings` | GET/PUT | Plan overrides, harness, sync settings, `traceMode`, onboarding flags |
 | `/api/settings/plan-months` | GET | Months with usage + tier presets for subscription UI |
 | `/api/sync` | POST | Re-index Claude JSONL (no-op for Cursor) |
-| `/api/cursor/provider-usage/upload` | POST | Import billing CSV + project attach |
+| `/api/sync/progress` | GET | In-process Claude spend sync progress (onboarding **Show status**; resets on server restart) |
+| `/api/tracing/sync/plan` | GET | Trace index plan: projects + changed-file counts |
+| `/api/tracing/sync` | POST | Index one project's changed sessions, or `{finalize:true}` |
+| `/api/tracing/{projects,sessions,session,requests,request}` | GET | Trace explorer / sessions / 3-column trace queries |
+| `/api/cursor/provider-usage/upload` | POST | Import billing CSV only (rows stay pending; project linking is the follow-up sync) |
 | `/api/cursor/attach-projects` | POST | Re-run project attach on stored CSV rows |
 | `/api/cursor/billing-coverage` | GET | CSV date range, export links, unmatched preview |
 | `/api/cursor/local-export-suggestion` | GET | Pre-upload dashboard export link from local vscdb composer activity (`from` = first local day, `to` = today) |

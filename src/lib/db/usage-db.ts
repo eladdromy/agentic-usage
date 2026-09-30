@@ -18,6 +18,33 @@ import { estimateClaudeUsageCostFromDb } from "@/lib/pricing/usage-cost";
 
 let conn: Database.Database | null = null;
 
+export type SpendSyncFileProgress = {
+  fileKey: string;
+  status: "pending" | "in_progress" | "done";
+  rowsInserted: number;
+};
+
+export type SpendSyncProgress = {
+  phase: "idle" | "indexing" | "done" | "skipped" | "error";
+  files: SpendSyncFileProgress[];
+  rowsInserted: number;
+  filesScanned: number;
+  error?: string;
+};
+
+const idleSpendProgress = (): SpendSyncProgress => ({
+  phase: "idle",
+  files: [],
+  rowsInserted: 0,
+  filesScanned: 0,
+});
+
+let spendSyncProgress: SpendSyncProgress = idleSpendProgress();
+
+export function getSpendSyncProgress(): SpendSyncProgress {
+  return spendSyncProgress;
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
@@ -297,6 +324,7 @@ async function runSyncClaudeUsageFromJsonl(): Promise<SyncResult> {
   const started = Date.now();
 
   if (isSyncDebounced()) {
+    spendSyncProgress = { ...idleSpendProgress(), phase: "skipped" };
     return {
       filesScanned: 0,
       rowsInserted: 0,
@@ -309,6 +337,7 @@ async function runSyncClaudeUsageFromJsonl(): Promise<SyncResult> {
   const syncMode = resolveSyncMode();
 
   if (syncMode === "updates_only" && !needsSync()) {
+    spendSyncProgress = { ...idleSpendProgress(), phase: "skipped" };
     return {
       filesScanned: 0,
       rowsInserted: 0,
@@ -318,6 +347,13 @@ async function runSyncClaudeUsageFromJsonl(): Promise<SyncResult> {
       syncMode,
     };
   }
+
+  spendSyncProgress = {
+    phase: "indexing",
+    files: [],
+    rowsInserted: 0,
+    filesScanned: 0,
+  };
 
   const db = getDatabase();
   const insert = db.prepare(`
@@ -343,9 +379,47 @@ async function runSyncClaudeUsageFromJsonl(): Promise<SyncResult> {
       ? allFiles
       : allFiles.filter((file) => file.mtimeMs > watermark);
 
+  const files: SpendSyncFileProgress[] = filesToScan.map((file) => ({
+    fileKey: file.fileKey,
+    status: "pending",
+    rowsInserted: 0,
+  }));
   let inserted = 0;
-  for (const file of filesToScan) {
-    inserted += await indexJsonlFile(file, insert);
+  let scanned = 0;
+  spendSyncProgress = {
+    phase: "indexing",
+    files,
+    rowsInserted: 0,
+    filesScanned: 0,
+  };
+
+  try {
+    for (const file of filesToScan) {
+      const entry = files[scanned];
+      if (entry) entry.status = "in_progress";
+      const rows = await indexJsonlFile(file, insert);
+      if (entry) {
+        entry.status = "done";
+        entry.rowsInserted = rows;
+      }
+      inserted += rows;
+      scanned += 1;
+      spendSyncProgress = {
+        phase: "indexing",
+        files,
+        rowsInserted: inserted,
+        filesScanned: scanned,
+      };
+    }
+  } catch (error) {
+    spendSyncProgress = {
+      phase: "error",
+      files,
+      rowsInserted: inserted,
+      filesScanned: scanned,
+      error: error instanceof Error ? error.message : "Spend sync failed",
+    };
+    throw error;
   }
 
   const maxMtime = allFiles.reduce((m, f) => Math.max(m, f.mtimeMs), 0);
@@ -353,6 +427,13 @@ async function runSyncClaudeUsageFromJsonl(): Promise<SyncResult> {
     metaSet("source_mtime_watermark", String(maxMtime));
   }
   metaSet("last_sync_at", new Date().toISOString());
+
+  spendSyncProgress = {
+    phase: "done",
+    files,
+    rowsInserted: inserted,
+    filesScanned: filesToScan.length,
+  };
 
   return {
     filesScanned: filesToScan.length,
