@@ -173,7 +173,7 @@ See [cursor-project-sync-troubleshooting.md](./docs/cursor-project-sync-troubles
 - [ ] Grok Build harness adapter
 - [ ] One-line installer script
 
-Issues and PRs welcome once the repo is public.
+Issues and PRs welcome.
 
 ---
 
