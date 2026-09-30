@@ -131,12 +131,12 @@ No `.env` file is required. These are **optional shell variables** — set them 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `AGENTIC_USAGE_DATA_DIR` | `./.data` | SQLite index and app settings |
-| `AGENTIC_USAGE_ANONYMIZE` | off | Replace project **display** names/paths in API responses (for README screenshots). Filter values stay real so Spend Logs project filters still work. |
+| `AGENTIC_USAGE_ANONYMIZE` | off | Replace project **display** fields in API responses (for README screenshots). Spend Logs filter **`value`** keys stay real so project filters still work; see [readme-screenshots.md](./docs/readme-screenshots.md). |
 | `CLAUDE_CONFIG_DIR` | `~/.claude` | Claude Code config directory (official) |
 | `CLAUDE_HOME` | — | Legacy Claude config override; used only when `CLAUDE_CONFIG_DIR` is unset |
 | `VSCDB_PATH` | Cursor global `state.vscdb` | Override IDE state DB path |
 
-When `AGENTIC_USAGE_ANONYMIZE=1`, only labels shown in the UI are anonymized — not internal filter keys or database queries.
+When `AGENTIC_USAGE_ANONYMIZE=1`, API responses use fake labels and paths where documented in [readme-screenshots.md](./docs/readme-screenshots.md). Spend Logs filter **`value`** keys and the database are unchanged.
 
 ---
 

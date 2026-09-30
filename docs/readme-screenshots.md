@@ -45,9 +45,11 @@ npm run screenshots
 
 When `AGENTIC_USAGE_ANONYMIZE=1`:
 
-- **Anonymized:** `label`, `detail`, `sourceLabel`, `sourceDetail`, session/composer ref labels, tracing project/session text, and free-text in trace request payloads (scrubbed for home paths and forbidden tokens).
+- **Anonymized in API JSON (display):** `label`, `detail`, `sourceLabel`, `sourceDetail`, session/composer ref labels; **projects breakdown** `projectKey` and `rowKey`; tracing project names/paths/slugs; free-text in trace request payloads (scrubbed for home paths and forbidden tokens).
 - **Harness logos (screenshot only):** single-harness rows in project-style tables use a deterministic ~70% Claude / ~30% Cursor logo mix; dual-harness rows keep both logos (Claude first).
-- **Not anonymized:** filter `value` keys (project slugs/paths), `projectKey`, and database queries — so Spend Logs project filters keep working during capture sessions.
+- **Still real (so filters and queries work):** Spend Logs project filter **`value`** on `/api/raw-spend/projects` (only `label` / `detail` are faked there); internal DB keys and query parameters used for filtering. Leak verification for that route checks display fields only.
+
+Nothing in SQLite or on-disk indexes is rewritten — anonymization applies only to HTTP responses while the env var is set.
 
 ## Captured files
 
