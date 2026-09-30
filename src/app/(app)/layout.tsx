@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
 import { isOnboardingComplete, migrateLegacyOnboardingIfNeeded } from "@/lib/onboarding/status";
+import { isReadmeScreenshotCaptureMode } from "@/lib/demo/readme-screenshot";
 import { resolveActiveHarness } from "@/lib/profile/settings";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 export default function AppLayout({ children }: LayoutProps<"/">) {
   migrateLegacyOnboardingIfNeeded();
 
-  if (!isOnboardingComplete()) {
+  if (!isOnboardingComplete() && !isReadmeScreenshotCaptureMode()) {
     redirect("/setup");
   }
 

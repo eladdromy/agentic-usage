@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 import type { TraceSessionSort } from "@/lib/db/trace-db";
 import { readSettings } from "@/lib/profile/settings";
 import {
+  anonymizeTraceSessionRows,
+  anonymizeTraceSessionsMeta,
+  deepScrubReadmePayload,
+} from "@/lib/demo/anonymize-api-payloads";
+import {
   projectDisplayName,
   resolveTraceProjectPath,
 } from "@/lib/tracing/projects-merge";
@@ -48,12 +53,21 @@ export async function GET(request: Request) {
     limit,
   });
 
-  return NextResponse.json({
-    rows,
-    total,
-    offset,
-    limit,
+  const projectName = projectDisplayName(projectPath, claudeProjectSlug);
+  const meta = anonymizeTraceSessionsMeta(
     projectPath,
-    projectName: projectDisplayName(projectPath, claudeProjectSlug),
-  });
+    projectName,
+    claudeProjectSlug,
+  );
+
+  return NextResponse.json(
+    deepScrubReadmePayload({
+      rows: anonymizeTraceSessionRows(rows, projectPath),
+      total,
+      offset,
+      limit,
+      projectPath: meta.projectPath,
+      projectName: meta.projectName,
+    }),
+  );
 }

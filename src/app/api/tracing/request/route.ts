@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { deepScrubReadmePayload } from "@/lib/demo/anonymize-api-payloads";
 import { getCursorRequestBreakdown } from "@/lib/db/cursor-trace-db";
 import { getRequestBreakdown } from "@/lib/db/trace-db";
 
@@ -20,5 +21,5 @@ export async function GET(request: Request) {
   if (!breakdown) {
     return NextResponse.json({ error: "Request not found" }, { status: 404 });
   }
-  return NextResponse.json(breakdown);
+  return NextResponse.json(deepScrubReadmePayload(breakdown));
 }

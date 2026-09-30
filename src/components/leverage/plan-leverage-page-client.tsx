@@ -9,6 +9,7 @@ import { useRouteSync } from "@/components/layout/route-sync";
 import {
   PlanLeverageTable,
 } from "@/components/leverage/plan-leverage-table";
+import { PlanLeverageSummaryExportCard } from "@/components/leverage/plan-leverage-summary-export-card";
 import {
   PlanLeverageYearSummaryCard,
 } from "@/components/leverage/plan-leverage-year-summary";
@@ -16,6 +17,7 @@ import { PageHeader } from "@/components/page-header";
 import { Surface } from "@/components/ui/surface";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  isReadmeSummaryExportScreenshot,
   isReadmeYearSummaryScreenshot,
   readmeScreenshotYear,
 } from "@/lib/demo/readme-screenshot";
@@ -25,8 +27,10 @@ import { useIsClient } from "@/lib/use-is-client";
 export function PlanLeveragePageClient() {
   const searchParams = useSearchParams();
   const isClient = useIsClient();
-  const screenshotMode =
+  const yearSummaryScreenshotMode =
     isClient && isReadmeYearSummaryScreenshot(searchParams);
+  const summaryExportScreenshotMode =
+    isClient && isReadmeSummaryExportScreenshot(searchParams);
   const { syncVersion, syncing, activeHarness } = useRouteSync();
   const [year, setYear] = useState(() =>
     readmeScreenshotYear(searchParams, new Date().getUTCFullYear()),
@@ -77,7 +81,24 @@ export function PlanLeveragePageClient() {
   const showRows = !isInitialLoad && data != null;
   const harness = data?.activeHarness ?? activeHarness;
 
-  if (screenshotMode) {
+  if (summaryExportScreenshotMode) {
+    if (isInitialLoad) {
+      return <PlanLeveragePageContentSkeleton />;
+    }
+
+    if (!showRows) return null;
+
+    return (
+      <PlanLeverageSummaryExportCard
+        captureVisible
+        year={data.selectedYear}
+        summary={data.yearSummary}
+        months={data.months}
+      />
+    );
+  }
+
+  if (yearSummaryScreenshotMode) {
     if (isInitialLoad) {
       return <PlanLeveragePageContentSkeleton />;
     }
