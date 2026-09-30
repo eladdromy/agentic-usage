@@ -1,4 +1,4 @@
-import type { HarnessKind, TraceMode } from "@/lib/profile/settings";
+import type { HarnessKind } from "@/lib/profile/settings";
 
 export type HarnessSetupProgress = {
   harness: HarnessKind;
@@ -6,32 +6,22 @@ export type HarnessSetupProgress = {
   total: number;
 };
 
-/** Claude: mode -> sync -> [trace if full] -> subscription. */
-export function claudeSetupTotal(traceMode: TraceMode): number {
-  return traceMode === "full_tracing" ? 4 : 3;
-}
+/** Claude: mode -> one index (spend, plus traces when chosen) -> subscription. */
+export const CLAUDE_SETUP_STEP_TOTAL = 3;
 
 export function claudeModeProgress(): HarnessSetupProgress {
-  // Total is unknown before the choice is made; show the spend-only baseline.
-  return { harness: "claude", step: 1, total: 3 };
+  return { harness: "claude", step: 1, total: CLAUDE_SETUP_STEP_TOTAL };
 }
 
-export function claudeSyncProgress(traceMode: TraceMode): HarnessSetupProgress {
-  return { harness: "claude", step: 2, total: claudeSetupTotal(traceMode) };
+export function claudeSyncProgress(): HarnessSetupProgress {
+  return { harness: "claude", step: 2, total: CLAUDE_SETUP_STEP_TOTAL };
 }
 
-export function claudeTraceProgress(): HarnessSetupProgress {
-  return { harness: "claude", step: 3, total: 4 };
+export function claudeSubscriptionProgress(): HarnessSetupProgress {
+  return { harness: "claude", step: 3, total: CLAUDE_SETUP_STEP_TOTAL };
 }
 
-export function claudeSubscriptionProgress(
-  traceMode: TraceMode,
-): HarnessSetupProgress {
-  const total = claudeSetupTotal(traceMode);
-  return { harness: "claude", step: total, total };
-}
-
-/** Cursor: mode -> upload -> sync -> subscription (tracing is 'Coming soon'). */
+/** Cursor: mode -> upload -> sync (project link, plus traces when chosen) -> subscription. */
 export const CURSOR_SETUP_STEP_TOTAL = 4;
 
 export const CURSOR_SETUP_STEPS = {

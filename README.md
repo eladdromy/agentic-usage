@@ -150,6 +150,8 @@ Detailed architecture, CSV import, log parsing, and plan pricing: [docs/README.m
 |---------|---------|
 | `npm run reset:cursor` | Wipe Cursor billing DB, bubble index, and Cursor onboarding flags (restart dev server after) |
 | `npm run reset:claude` | Wipe Claude usage index and Claude onboarding flags |
+| `npm run reset:trace` | Wipe Claude and Cursor trace indexes only |
+| `npm run reset:all` | Wipe Claude, Cursor, and trace data and return to onboarding |
 
 See [cursor-project-sync-troubleshooting.md](./docs/cursor-project-sync-troubleshooting.md) if project sync shows thousands of pending rows or mass match failures.
 

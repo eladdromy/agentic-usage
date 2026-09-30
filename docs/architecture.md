@@ -81,7 +81,7 @@ Details: [onboarding.md](./onboarding.md).
 
 ## Tracing
 
-An optional, fully isolated **full session trace** index for Claude Code, stored in its own `.data/claude-trace.db` (separate from `agentic-usage.db`). Powers a top-level **Tracing** nav item: projects → sessions → a three-column session trace (Interactions | Requests | Request breakdown). Incremental (mtime watermark + per-session hash); the first run is the only full pass. Gated per harness by `traceMode` (`spend_only` | `full_tracing`), chosen in an onboarding **mode** step and toggleable in Settings; Cursor tracing is a disabled follow-up phase. Full details: [tracing.md](./tracing.md).
+Optional **full session trace** indexes: Claude → `.data/claude-trace.db`, Cursor → `.data/cursor-trace.db` (both separate from spend DBs). Powers the **Tracing** nav item: projects → sessions → three-column session trace (Interactions | Requests | Request breakdown). Incremental (mtime watermark + per-session hash). Gated per harness by `traceMode` (`spend_only` | `full_tracing`), chosen in onboarding **mode** and toggleable in Settings; Cursor full tracing can run during onboarding **Index Cursor** when `CURSOR_FULL_TRACING_ONBOARDING_AVAILABLE` is true. Full details: [tracing.md](./tracing.md).
 
 ## API routes
 
@@ -96,10 +96,11 @@ An optional, fully isolated **full session trace** index for Claude Code, stored
 | `/api/settings` | GET/PUT | Plan overrides, harness, sync settings, `traceMode`, onboarding flags |
 | `/api/settings/plan-months` | GET | Months with usage + tier presets for subscription UI |
 | `/api/sync` | POST | Re-index Claude JSONL (no-op for Cursor) |
+| `/api/sync/progress` | GET | In-process Claude spend sync progress (onboarding **Show status**; resets on server restart) |
 | `/api/tracing/sync/plan` | GET | Trace index plan: projects + changed-file counts |
 | `/api/tracing/sync` | POST | Index one project's changed sessions, or `{finalize:true}` |
 | `/api/tracing/{projects,sessions,session,requests,request}` | GET | Trace explorer / sessions / 3-column trace queries |
-| `/api/cursor/provider-usage/upload` | POST | Import billing CSV + project attach |
+| `/api/cursor/provider-usage/upload` | POST | Import billing CSV only (rows stay pending; project linking is the follow-up sync) |
 | `/api/cursor/attach-projects` | POST | Re-run project attach on stored CSV rows |
 | `/api/cursor/billing-coverage` | GET | CSV date range, export links, unmatched preview |
 | `/api/cursor/local-export-suggestion` | GET | Pre-upload dashboard export link from local vscdb composer activity (`from` = first local day, `to` = today) |

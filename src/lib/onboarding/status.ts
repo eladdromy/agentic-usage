@@ -58,6 +58,7 @@ export type OnboardingStatus = {
     | "onboardingCursorSubscriptionApproved"
     | "onboardingCursorProjectSyncDone"
     | "onboardingClaudeTraceIndexed"
+    | "onboardingCursorTraceIndexed"
     | "onboardingDeferredCursor"
     | "traceMode"
     | "activeHarness"
@@ -233,6 +234,7 @@ export function buildOnboardingStatus(settings?: AppSettings): OnboardingStatus 
       onboardingCursorSubscriptionApproved: s.onboardingCursorSubscriptionApproved,
       onboardingCursorProjectSyncDone: s.onboardingCursorProjectSyncDone,
       onboardingClaudeTraceIndexed: s.onboardingClaudeTraceIndexed,
+      onboardingCursorTraceIndexed: s.onboardingCursorTraceIndexed,
       onboardingDeferredCursor: s.onboardingDeferredCursor,
       traceMode: s.traceMode,
       activeHarness: s.activeHarness,

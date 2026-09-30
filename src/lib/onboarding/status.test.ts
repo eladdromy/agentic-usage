@@ -20,6 +20,7 @@ const mockSettings = vi.hoisted(() => {
     onboardingCursorSubscriptionApproved: true,
     onboardingCursorProjectSyncDone: true,
     onboardingClaudeTraceIndexed: false,
+    onboardingCursorTraceIndexed: false,
     onboardingDeferredCursor: false,
   };
   return { current: { ...base } };
@@ -89,6 +90,7 @@ function legacySettings(): AppSettings {
     onboardingCursorSubscriptionApproved: false,
     onboardingCursorProjectSyncDone: false,
     onboardingClaudeTraceIndexed: false,
+    onboardingCursorTraceIndexed: false,
     onboardingDeferredCursor: false,
   };
 }

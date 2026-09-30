@@ -19,25 +19,25 @@ const OPTIONS: {
   description: string;
 }[] = [
   {
-    value: "spend_only",
-    icon: Receipt,
-    title: "Spend breakdown only",
-    description:
-      "Index token usage and cost for plan leverage, projects, and spend logs. Fastest to set up.",
-  },
-  {
     value: "full_tracing",
     icon: Waypoints,
     title: "Spend + Full Tracing",
     description:
       "Also index full session traces — interactions, requests, and per-request breakdowns. One-time full index of your local logs.",
   },
+  {
+    value: "spend_only",
+    icon: Receipt,
+    title: "Spend breakdown only",
+    description:
+      "Index token usage and cost for plan leverage, projects, and spend logs. Fastest to set up.",
+  },
 ];
 
 export function SetupClaudeModeClient() {
   const router = useRouter();
   const { status, loading, refresh } = useOnboardingStatus();
-  const [selected, setSelected] = useState<TraceMode>("spend_only");
+  const [selected, setSelected] = useState<TraceMode>("full_tracing");
   const [saving, setSaving] = useState(false);
 
   if (loading && !status) {

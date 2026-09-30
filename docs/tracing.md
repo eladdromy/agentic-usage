@@ -166,13 +166,16 @@ Opening `/tracing` never indexes logs. The projects list and session pages query
 the existing SQLite index immediately (`GET /api/tracing/projects` and
 `GET /api/tracing/sessions`).
 
-`trace-sync-provider.tsx` wraps the tracing routes (`layout.tsx`) and onboarding
-trace step, but **does not** start a job on mount. **Update trace index** on the
-projects list (and **Start indexing** during onboarding) calls
-`startTraceSync()`, which runs `runTraceSyncChunks()`: `GET /api/tracing/sync/plan`,
+`trace-sync-provider.tsx` wraps the tracing routes (`layout.tsx`) and the Claude
+onboarding index step. The Tracing page **does not** start a job on mount.
+**Update trace index** calls `startTraceSync()` and opens the dialog immediately.
+Claude onboarding calls `startTraceSync({ harness: "claude", modal: false })`
+when full tracing was chosen, so the dialog stays closed until **Show status**.
+Both run `runTraceSyncChunks()`: `GET /api/tracing/sync/plan`,
 then sequential `POST /api/tracing/sync` in **small chunks** (8 Claude sessions /
 4 Cursor composers per request). Progress is `trace-sync-progress-panel.tsx`
-inside `trace-sync-modal.tsx` (non-dismissible until `done` or `error`; the
+inside `trace-sync-modal.tsx` (non-dismissible until `done` or `error` when the
+dialog opened itself; onboarding can close it while indexing continues; the
 project list scrolls inside a `max-h` dialog so a long index stays on screen). When
 nothing changed the job finishes immediately. If every in-scope harness is still
 `spend_only`, the explorer disables the button and says full tracing must be
@@ -186,24 +189,35 @@ clicks **Update trace index**. Project and session routes have no sync UI.
 whether trace indexing runs for a harness.
 
 - **Onboarding** (`src/lib/onboarding/navigation.ts`, `src/app/setup/`):
-  - Claude: `mode` → `sync` → `trace` (only when `full_tracing`, reuses the
-    progress UX; sets `onboardingClaudeTraceIndexed`) → `subscription`.
-  - Cursor: `mode` (full tracing disabled, "Coming soon") → `upload` → `sync` →
-    `subscription`.
-  - Step totals in `src/lib/onboarding/setup-steps.ts` are mode-aware
-    (Claude: 3 spend-only / 4 with tracing; Cursor: 4). The spend readiness gate
-    (`isClaudeHarnessReady`) is unchanged, and a trace-index failure does not
-    block onboarding completion.
+  - Claude: `mode` (spend only vs spend + full tracing) → one `sync` step.
+    Spend always runs. Full tracing also runs the Claude trace index in that
+    same step (`harness: "claude"`, dialog closed). Each running line has
+    **Show status** (spend file list via `GET /api/sync/progress`, or the trace
+    project list). The button disappears when that line finishes.
+    `onboardingClaudeTraceIndexed` is set only when the trace job finishes.
+    `/setup/claude/trace` redirects to `sync`.
+  - Cursor: `mode` (same two choices) → `upload` → `sync` → `subscription`.
+    The sync step always links billing rows. Full tracing also runs
+    `startTraceSync({ harness: "cursor", modal: false })` on that step and
+    sets `onboardingCursorTraceIndexed` only when that job finishes. Continue
+    stays disabled until then. **Show status** opens the trace list while it
+    runs.
+  - Step totals: Claude 3, Cursor 4. The spend readiness gate
+    (`isClaudeHarnessReady`) is unchanged. A trace-index failure keeps Continue
+    disabled until the trace job succeeds.
 - **Settings** (`src/components/settings/tracing-settings-control.tsx`): a per-
   harness Tracing control (Spend only / Full tracing) persisted via
   `PUT /api/settings`. Saving full tracing does not index. Build or refresh the
-  index from Tracing with **Update trace index**. Cursor is shown disabled.
+  index from Tracing with **Update trace index**.
 
 ## Reset
 
 `npm run reset:trace` (`scripts/reset-trace-data.sh`) deletes only
 `claude-trace.db` and `cursor-trace.db` (+ `-wal`/`-shm`). It never touches your
-real logs, `agentic-usage.db`, the other Cursor databases, or `settings.json`.
-Stop the dev server first. Rebuild requires `traceMode` set to `full_tracing`
-(and saved) for each harness you index; then open Tracing and click
-**Update trace index**.
+real logs, `agentic-usage.db`, the other Cursor databases, or `settings.json`
+(including `onboardingClaudeTraceIndexed`). Stop the dev server first.
+
+`npm run reset:all` (`scripts/reset-all-data.sh`) deletes those trace indexes
+plus the Claude spend DB and Cursor billing DBs, and clears onboarding flags
+including `onboardingClaudeTraceIndexed` and `traceMode`. Restart the dev
+server, then open the app to run onboarding again.

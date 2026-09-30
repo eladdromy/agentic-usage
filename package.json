@@ -38,7 +38,8 @@
     "screenshots:verify": "node scripts/verify-no-leaks.mjs",
     "reset:cursor": "bash scripts/reset-cursor-data.sh",
     "reset:claude": "bash scripts/reset-claude-data.sh",
-    "reset:trace": "bash scripts/reset-trace-data.sh"
+    "reset:trace": "bash scripts/reset-trace-data.sh",
+    "reset:all": "bash scripts/reset-all-data.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

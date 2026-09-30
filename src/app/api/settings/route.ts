@@ -84,6 +84,12 @@ export async function PUT(request: Request) {
         : body.onboardingClaudeTraceIndexed === false
           ? false
           : current.onboardingClaudeTraceIndexed,
+    onboardingCursorTraceIndexed:
+      body.onboardingCursorTraceIndexed === true
+        ? true
+        : body.onboardingCursorTraceIndexed === false
+          ? false
+          : current.onboardingCursorTraceIndexed,
     onboardingCompletedAt:
       body.onboardingCompletedAt === null
         ? null
