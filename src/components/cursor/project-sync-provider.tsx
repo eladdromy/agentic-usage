@@ -17,6 +17,7 @@ import {
   runProjectSyncByMonth,
   type ProjectSyncJobSnapshot,
 } from "@/lib/cursor/project-sync-client";
+import { resolveEmptyProjectSyncTarget } from "@/lib/cursor/project-sync-empty-target";
 import {
   monthNeedsProjectSync,
   resolveProjectSyncTargetMonths,
@@ -109,18 +110,16 @@ export function ProjectSyncProvider({ children }: { children: ReactNode }) {
         const targetMonths = resolveProjectSyncTargetMonths(options, payload.months);
 
         if (targetMonths.length === 0) {
-          if (useModal) {
+          const empty = resolveEmptyProjectSyncTarget(
+            useModal,
+            payload.bubbleIndexReady,
+          );
+          if (empty.kind === "modal_toast") {
             toast.info("All billing rows are already linked to projects.");
             setModalOpen(false);
             setSyncSnapshot(null);
           } else {
-            setSyncSnapshot({
-              phase: "done",
-              bubbleIndexReady: payload.bubbleIndexReady,
-              months: [],
-              status: "done",
-              finished: true,
-            });
+            setSyncSnapshot(empty.snapshot);
           }
           options.onComplete?.();
           return;

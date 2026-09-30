@@ -52,6 +52,8 @@ Re-run attribution without re-uploading: `POST /api/cursor/attach-projects` (opt
 
 `POST /api/cursor/provider-usage/upload` **only imports rows**. It must not call `attachProjectsToBillingEvents`. New rows stay **pending** until the follow-up sync. If upload linked them first, that sync would see zero pending months, toast that everything is already linked, and the onboarding “Index Cursor” step would never enable **Continue**.
 
+**Upload response (JSON):** `{ inserted, skipped, dateFrom?, dateTo?, traceCosts: { scheduled: true } }`. There is **no** `attach` field — project linking always runs via `startProjectSync` (Settings modal or `/setup/cursor/sync`), not inside the upload handler.
+
 CSV upload is a **single-step dialog** (pick file → upload). On success with new rows, the upload dialog closes and an **app-level blocking modal** opens for project linking — the same modal used by **Re-match projects** / **Sync now**. The modal cannot be dismissed (no X, backdrop click, or Escape) until sync finishes; **Done** stays disabled until then.
 
 If the file has **no new rows** (`inserted === 0`), the upload dialog closes and a snackbar explains why (duplicates or empty file). Project sync is skipped.
